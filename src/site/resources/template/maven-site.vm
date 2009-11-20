@@ -280,8 +280,9 @@
     #foreach( $author in $authors )
       <meta name="author" content="$author" />
     #end    
-    <meta name="description" content="Flazr is a Java implementation of the RTMP protocol used for streaming videos to Adobe Flash player based clients.  Flazr can connect to an RTMP stream and save it to an FLV file for offline viewing."/>
-    <meta name="keywords" content="rtmp, rtmpe, adobe, flash, video, stream, rtmpdump, ripper, download, open source, free, opensource"/>
+    <meta name="description" content="Flazr is a Java implementation of protocols such as RTMP used for multimedia streaming.  The Flazr project includes a streaming media server and related utilities."/>
+    <meta name="keywords" content="server, rtmp, rtmpe, adobe, flash, video, stream, streaming, rtmpdump, downloader, open source, free, opensource"/>
+    <meta name="keywords" content="multimedia, flv, f4v, h.264, avc, avc1, mpeg, mpeg-4, mp4, mp4a, mp3, aac, transcoding, publishing, content management, digital asset management"/>
     <meta http-equiv="Content-Type" content="text/html; charset=${outputEncoding}" />
     #if ( $decoration.body.head )
       #foreach( $item in $decoration.body.head.getChildren() )

@@ -1,21 +1,25 @@
 /*
- * Copyright 2002-2005 the original author or authors.
+ * Flazr <http://flazr.com> Copyright (C) 2009  Peter Thomas.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This file is part of Flazr.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Flazr is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Flazr is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr;
+package com.flazr.rtmp;
 
+import com.flazr.util.Utils;
 import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -23,46 +27,41 @@ import java.security.KeyPairGenerator;
 import java.security.PublicKey;
 import java.security.spec.KeySpec;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
-
 import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
 import javax.crypto.interfaces.DHPublicKey;
 import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.DHPublicKeySpec;
 import javax.crypto.spec.SecretKeySpec;
-
-import org.apache.mina.common.ByteBuffer;
+import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * RTMPE support added based on the public spec created by http://lkcl.net
- * available at http://lkcl.net/rtmp/RTMPE.txt
- * thanks also to the detailed breakdown of the handshake created by the 
- * crtmpserver project http://www.rtmpd.com
- * available at http://www.rtmpd.com/export/425/trunk/docs/RTMPEHandshake.pdf
- */
-public class Handshake {
+public class RtmpHandshake {
+    
+    private static final Logger logger = LoggerFactory.getLogger(RtmpHandshake.class);
 
-	private static final Logger logger = LoggerFactory.getLogger(Handshake.class);
+    public static final int HANDSHAKE_SIZE = 1536;
 
-	private static final int HANDSHAKE_SIZE = 1536;	
+    /** SHA 256 digest length */
+    private static final int DIGEST_SIZE = 32;
+    private static final int PUBLIC_KEY_SIZE = 128;
 
-	/** SHA 256 digest length */
-	private static final int SHA256_LEN = 32;		
+    private static final byte[] SERVER_CONST = "Genuine Adobe Flash Media Server 001".getBytes();
 
-	private static final byte[] SERVER_CONST = "Genuine Adobe Flash Media Server 001".getBytes();
+    public static final byte[] CLIENT_CONST = "Genuine Adobe Flash Player 001".getBytes();
 
-	public static final byte[] CLIENT_CONST = "Genuine Adobe Flash Player 001".getBytes();
-	
-	private static final byte[] RANDOM_CRUD = Utils.fromHex(
-		"F0EEC24A8068BEE82E00D0D1029E7E576EEC5D2D29806FAB93B8E636CFEB31AE"
-	);	
+    private static final byte[] RANDOM_CRUD = Utils.fromHex(
+        "F0EEC24A8068BEE82E00D0D1029E7E576EEC5D2D29806FAB93B8E636CFEB31AE"
+    );
 
-	private static final byte[] SERVER_CONST_CRUD = concat(SERVER_CONST, RANDOM_CRUD);
+    private static final byte[] SERVER_CONST_CRUD = concat(SERVER_CONST, RANDOM_CRUD);
 
-	private static final byte[] CLIENT_CONST_CRUD = concat(CLIENT_CONST, RANDOM_CRUD);
+    private static final byte[] CLIENT_CONST_CRUD = concat(CLIENT_CONST, RANDOM_CRUD);
 
     private static final byte[] DH_MODULUS_BYTES = Utils.fromHex(
     	  "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74"
@@ -73,322 +72,427 @@ public class Handshake {
 
     private static final BigInteger DH_MODULUS = new BigInteger(1, DH_MODULUS_BYTES);
 
-    private static final BigInteger DH_BASE = BigInteger.valueOf(2);    
+    private static final BigInteger DH_BASE = BigInteger.valueOf(2);
 
-	private static byte[] concat(byte[] a, byte[] b) {
-		byte[] c = new byte[a.length + b.length];
-		System.arraycopy(a, 0, c, 0, a.length);
-		System.arraycopy(b, 0, c, a.length, b.length);
-		return c;
-	}
-	
-	private static int calculateOffset(byte[] pointer, int modulus, int increment) {
-		if(pointer.length != 4) {
-			throw new RuntimeException("bad pointer length, should be 4 but is: " + pointer.length);
-		}
-		int offset = 0;
-		// sum the 4 bytes of the pointer
-		for(int i = 0; i < pointer.length; i++) {
-			offset += pointer[i] & 0xff;
-		}		
-		offset %= modulus;
-		offset += increment;
-		return offset;
-	}
+    private static byte[] concat(byte[] a, byte[] b) {
+        byte[] c = new byte[a.length + b.length];
+        System.arraycopy(a, 0, c, 0, a.length);
+        System.arraycopy(b, 0, c, a.length, b.length);
+        return c;
+    }
 
-	private static byte[] getFourBytesFrom(ByteBuffer buf, int offset) {
-		int initial = buf.position();
-		buf.position(offset);
-		byte[] bytes = new byte[4];
-		buf.get(bytes);
-		buf.position(initial);
-		return bytes;
-	}
-
-	private static KeyPair generateKeyPair(RtmpSession session) {
-		DHParameterSpec keySpec = new DHParameterSpec(DH_MODULUS, DH_BASE);
-		try {
-			KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DH");
-			keyGen.initialize(keySpec);
-			KeyPair keyPair = keyGen.generateKeyPair();
-		    KeyAgreement keyAgreement = KeyAgreement.getInstance("DH");
-		    keyAgreement.init(keyPair.getPrivate());
-		    session.setKeyAgreement(keyAgreement);
-			return keyPair;
-		} catch(Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	private static byte[] getPublicKey(KeyPair keyPair) {
-		 DHPublicKey publicKey = (DHPublicKey) keyPair.getPublic();
-	     BigInteger	dh_Y = publicKey.getY();	     
-	     byte[] result = dh_Y.toByteArray();
-	     logger.debug("public key as bytes, len = [" + result.length + "]: " + Utils.toHex(result));
-	     byte[] temp = new byte[128];
-	     if(result.length < 128) {
-	    	 System.arraycopy(result, 0, temp, 128 - result.length, result.length);
-	    	 result = temp;
-	    	 logger.debug("padded public key length to 128");
-	     } else if(result.length > 128){
-	    	 System.arraycopy(result, result.length - 128, temp, 0, 128);
-	    	 result = temp;
-	    	 logger.debug("truncated public key length to 128");
-	     }
-	     return result;
-	}
-
-	private static byte[] getSharedSecret(byte[] otherPublicKeyBytes, KeyAgreement keyAgreement) {
-		BigInteger otherPublicKeyInt = new BigInteger(1, otherPublicKeyBytes);
-		try {
-			KeyFactory keyFactory = KeyFactory.getInstance("DH");
-			KeySpec otherPublicKeySpec = new DHPublicKeySpec(otherPublicKeyInt, DH_MODULUS, DH_BASE);
-			PublicKey otherPublicKey = keyFactory.generatePublic(otherPublicKeySpec);
-		    keyAgreement.doPhase(otherPublicKey, true);
-		} catch(Exception e) {
-			throw new RuntimeException(e);
-		}
-	    byte[] sharedSecret = keyAgreement.generateSecret();
-	    logger.debug("shared secret (" + sharedSecret.length + " bytes): " + Utils.toHex(sharedSecret));
-	    return sharedSecret;
-	}
-
-	private ByteBuffer data;
-
-	public ByteBuffer getData() {
-		return data;
-	}
-
-	public static Handshake generateClientRequest1(RtmpSession session) {		
-		ByteBuffer buf = ByteBuffer.allocate(HANDSHAKE_SIZE);
-        Utils.writeInt32Reverse(buf, (int) System.currentTimeMillis() & 0x7FFFFFFF);
-        buf.put(new byte[] { 0x09, 0x00, 0x7c, 0x02 }); // flash player version 9.0.124.2
-		byte[] randomBytes = new byte[HANDSHAKE_SIZE - 8]; // 4 + 4 bytes [time, version] done already
-		Random random = new Random();
-		random.nextBytes(randomBytes);
-		buf.put(randomBytes);
-		buf.flip();
-        if(session.isEncrypted()) {
-        	logger.info("creating client handshake part 1 for encryption");
-	        KeyPair keyPair = generateKeyPair(session);
-	        byte[] clientPublicKey = getPublicKey(keyPair);
-	        byte[] dhPointer = getFourBytesFrom(buf, HANDSHAKE_SIZE - 4);
-	        int dhOffset = calculateOffset(dhPointer, 632, 772);
-	        buf.position(dhOffset);
-	        buf.put(clientPublicKey);
-	        session.setClientPublicKey(clientPublicKey);
-	        logger.debug("client public key: " + Utils.toHex(clientPublicKey));
-
-	        byte[] digestPointer = getFourBytesFrom(buf, 8);
-	        int digestOffset = calculateOffset(digestPointer, 728, 12);
-	        buf.rewind();
-	        int messageLength = HANDSHAKE_SIZE - SHA256_LEN;
-	        byte[] message = new byte[messageLength];
-	        buf.get(message, 0, digestOffset);
-	        int afterDigestOffset = digestOffset + SHA256_LEN;
-	        buf.position(afterDigestOffset);
-	        buf.get(message, digestOffset, HANDSHAKE_SIZE - afterDigestOffset);
-			byte[] digest = Utils.sha256(message, CLIENT_CONST);
-			buf.position(digestOffset);
-			buf.put(digest);
-			buf.rewind();
-			session.setClientDigest(digest);
+    private static int calculateOffset(ChannelBuffer in, int pointerIndex, int modulus, int increment) {
+        byte[] pointer = new byte[4];
+        in.getBytes(pointerIndex, pointer);
+        int offset = 0;
+        // sum the 4 bytes of the pointer
+        for (int i = 0; i < pointer.length; i++) {
+            offset += pointer[i] & 0xff;
         }
+        offset %= modulus;
+        offset += increment;
+        return offset;
+    }
 
-        Handshake hs = new Handshake();
-        hs.data = ByteBuffer.allocate(HANDSHAKE_SIZE + 1);
-		if(session.isEncrypted()) {
-			hs.data.put((byte) 0x06);
-		} else {
-			hs.data.put((byte) 0x03);
-		}
-		hs.data.put(buf);
-		hs.data.flip();
-		return hs;
-	}
+    private static byte[] digestHandshake(ChannelBuffer in, int digestOffset, byte[] key) {
+        final byte[] message = new byte[HANDSHAKE_SIZE - DIGEST_SIZE];
+        in.getBytes(0, message, 0, digestOffset);
+        final int afterDigestOffset = digestOffset + DIGEST_SIZE;
+        in.getBytes(afterDigestOffset, message, digestOffset, HANDSHAKE_SIZE - afterDigestOffset);
+        return Utils.sha256(message, key);
+    }
 
-	public static boolean decodeServerResponse(ByteBuffer in, RtmpSession session) {
-    	if(in.remaining() < 1 + HANDSHAKE_SIZE + HANDSHAKE_SIZE) {
-    		return false;
-    	}
-		byte[] serverResponse = new byte[1 + HANDSHAKE_SIZE + HANDSHAKE_SIZE];
-		in.get(serverResponse);	
-		session.setServerResponse(serverResponse);
-		
-		// TODO validate bytes[0] is 0x03 or 0x06 (encryption)
-		
-		ByteBuffer partOne = ByteBuffer.allocate(HANDSHAKE_SIZE);
-		partOne.put(serverResponse, 1, HANDSHAKE_SIZE);
-		partOne.flip();		
-		logger.debug("server response part 1: " + partOne);		
+    private static ChannelBuffer generateRandomHandshake() {
+        byte[] randomBytes = new byte[HANDSHAKE_SIZE];
+        Random random = new Random();
+        random.nextBytes(randomBytes);
+        return ChannelBuffers.wrappedBuffer(randomBytes);
+    }
 
-		if(session.isEncrypted()) {
-			logger.info("processing server response for encryption");			
-			// TODO validate time and version ?
-			byte[] serverTime = new byte[4];
-			partOne.get(serverTime);
-			logger.debug("server time: " + Utils.toHex(serverTime));
+    private static final Map<Integer, Integer> clientVersionToValidationTypeMap;
 
-			byte[] serverVersion = new byte[4];
-			partOne.get(serverVersion);
-			logger.debug("server version: " + Utils.toHex(serverVersion));
+    static {
+        Map<Integer, Integer> map = new HashMap<Integer, Integer>();
+        map.put(0x09007c02, 1);
+        map.put(0x09009702, 1);
+        map.put(0x09009f02, 1);
+        map.put(0x0900f602, 1);
+        map.put(0x0a000202, 1);
+        map.put(0x0a000c02, 1);
+        map.put(0x80000102, 1);
+        map.put(0x80000302, 2);
+        map.put(0x0a002002, 2);
+        clientVersionToValidationTypeMap = map;
+    }
 
-			byte[] digestPointer = new byte[4]; // position 8
-			partOne.get(digestPointer);
-			int digestOffset = calculateOffset(digestPointer, 728, 12);
-	        partOne.rewind();
+    protected static int getValidationTypeForClientVersion(byte[] version) {               
+        final int intValue = ChannelBuffers.wrappedBuffer(version).getInt(0);
+        Integer type = clientVersionToValidationTypeMap.get(intValue);
+        if(type == null) {
+            return 0;
+        }
+        return type;
+    }
 
-	        int messageLength = HANDSHAKE_SIZE - SHA256_LEN;
-	        byte[] message = new byte[messageLength];
-			partOne.get(message, 0, digestOffset);
-			int afterDigestOffset = digestOffset + SHA256_LEN;
-			partOne.position(afterDigestOffset);
-			partOne.get(message, digestOffset, HANDSHAKE_SIZE - afterDigestOffset);
-			byte[] digest = Utils.sha256(message, SERVER_CONST);
-			byte[] serverDigest = new byte[SHA256_LEN];
-			partOne.position(digestOffset);
-			partOne.get(serverDigest);
+    private byte[] clientVersionToUse = new byte[]{0x09, 0x00, 0x7c, 0x02};
+    
+    private byte[] serverVersionToUse = new byte[]{0x03, 0x05, 0x01, 0x01};
 
-			byte[] serverPublicKey = new byte[128];
-			if(Arrays.equals(digest, serverDigest)) {
-				logger.info("type 1 digest comparison success");
-				byte[] dhPointer = getFourBytesFrom(partOne, HANDSHAKE_SIZE - 4);
-				int dhOffset = calculateOffset(dhPointer, 632, 772);
-				partOne.position(dhOffset);
-				partOne.get(serverPublicKey);
-				session.setServerDigest(serverDigest);
-			} else {
-				logger.warn("type 1 digest comparison failed, trying type 2 algorithm");
-				digestPointer = getFourBytesFrom(partOne, 772);
-				digestOffset = calculateOffset(digestPointer, 728, 776);
-				message = new byte[messageLength];
-				partOne.rewind();
-				partOne.get(message, 0, digestOffset);
-				afterDigestOffset = digestOffset + SHA256_LEN;
-				partOne.position(afterDigestOffset);
-				partOne.get(message, digestOffset, HANDSHAKE_SIZE - afterDigestOffset);
-				digest = Utils.sha256(message, SERVER_CONST);
-				serverDigest = new byte[SHA256_LEN];
-				partOne.position(digestOffset);
-				partOne.get(serverDigest);
-				if(Arrays.equals(digest, serverDigest)) {
-					logger.info("type 2 digest comparison success");
-					byte[] dhPointer = getFourBytesFrom(partOne, 768);
-					int dhOffset = calculateOffset(dhPointer, 632, 8);
-					partOne.position(dhOffset);
-					partOne.get(serverPublicKey);
-					session.setServerDigest(serverDigest);
-				} else {
-					throw new RuntimeException("type 2 digest comparison also failed, aborting");
-				}
-			}
-			logger.debug("server public key: " + Utils.toHex(serverPublicKey));			
-			byte[] sharedSecret = getSharedSecret(serverPublicKey, session.getKeyAgreement());					
+    private int digestOffset(ChannelBuffer in) {
+        switch(validationType) {
+            case 1: return calculateOffset(in, 8, 728, 12);
+            case 2: return calculateOffset(in, 772, 728, 776);
+            default: throw new RuntimeException("cannot get digest offset for type: " + validationType);
+        }
+    }
 
-			byte[] digestOut = Utils.sha256(serverPublicKey, sharedSecret);
-			try {
-				Cipher cipherOut = Cipher.getInstance("RC4");
-				cipherOut.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(digestOut, 0, 16, "RC4"));
-				session.setCipherOut(cipherOut);
-			} catch(Exception e) {
-				throw new RuntimeException(e);
-			}
+    private int publicKeyOffset(ChannelBuffer in) {
+        switch(validationType) {
+            case 1: return calculateOffset(in, 1532, 632, 772);
+            case 2: return calculateOffset(in, 768, 632, 8);
+            default: throw new RuntimeException("cannot get public key offset for type: " + validationType);
+        }
+    }
 
-			byte[] digestIn = Utils.sha256(session.getClientPublicKey(), sharedSecret);
-			try {
-				Cipher cipherIn = Cipher.getInstance("RC4");
-				cipherIn.init(Cipher.DECRYPT_MODE, new SecretKeySpec(digestIn, 0, 16, "RC4"));
-				session.setCipherIn(cipherIn);
-			} catch(Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
-		
-		ByteBuffer partTwo = ByteBuffer.allocate(HANDSHAKE_SIZE);
-		partTwo.put(serverResponse, 1 + HANDSHAKE_SIZE, HANDSHAKE_SIZE);
-		partTwo.flip();		
-		
-		logger.debug("server response part 2: " + partTwo);
-		
-		// validate server response part 2, not really required for client, but just to show off ;)
-		if(session.isEncrypted()) {
-			byte[] firstFourBytes = getFourBytesFrom(partTwo, 0);			
-			if(Arrays.equals(new byte[]{0, 0, 0, 0}, firstFourBytes)) {
-				logger.warn("server response part 2 first four bytes are zero, did handshake fail ?");
-			}			
-			byte[] message = new byte[HANDSHAKE_SIZE - SHA256_LEN];
-			partTwo.get(message);
-			byte[] digest = Utils.sha256(session.getClientDigest(), SERVER_CONST_CRUD);
-			byte[] signature = Utils.sha256(message, digest);
-			byte[] serverSignature = new byte[SHA256_LEN];			
-			partTwo.get(serverSignature);
-			if(Arrays.equals(signature, serverSignature)) {
-				logger.info("server response part 2 validation / Flash Player v9 handshake success");
-			} else {
-				logger.warn("server response part 2 validation failed, not Flash Player v9 handshake ?");
-			}			
-		}
+    //==========================================================================
+    
+    private KeyAgreement keyAgreement;
+    private byte[] ownPublicKey;
+    private byte[] peerPublicKey;
+    private byte[] ownPartOneDigest;
+    private byte[] peerPartOneDigest;
+    private Cipher cipherOut;
+    private Cipher cipherIn;
+    private byte[] peerTime;
 
-		// swf verification
-		if(session.getSwfHash() != null) {
-			byte[] bytesFromServer = new byte[SHA256_LEN];
-			partOne.position(HANDSHAKE_SIZE - SHA256_LEN);
-			partOne.get(bytesFromServer);
-			byte[] bytesFromServerHash = Utils.sha256(session.getSwfHash(), bytesFromServer);
-			// construct SWF verification pong payload
-			ByteBuffer swfv = ByteBuffer.allocate(42);
-			swfv.put((byte) 0x01);
-			swfv.put((byte) 0x01);
-			swfv.putInt(session.getSwfSize());
-			swfv.putInt(session.getSwfSize());
-			swfv.put(bytesFromServerHash);
-			byte[] swfvBytes = new byte[42];
-			swfv.flip();
-			swfv.get(swfvBytes);
-			session.setSwfVerification(swfvBytes);
-			logger.info("calculated swf verification response: " + Utils.toHex(swfvBytes));
-		}
+    private boolean rtmpe;
+    private int validationType;
 
-		return true;
-	}
+    private byte[] swfHash;
+    private int swfSize;
+    private byte[] swfvBytes;    
+    
+    private ChannelBuffer peerPartOne;
+    private ChannelBuffer ownPartOne;
 
-	public static Handshake generateClientRequest2(RtmpSession session) {
-		// TODO validate serverResponsePart2
-		if(session.isEncrypted()) { // encryption
-			logger.info("creating client handshake part 2 for encryption");
-			byte[] randomBytes = new byte[HANDSHAKE_SIZE];
-			Random random = new Random();
-			random.nextBytes(randomBytes);
-			ByteBuffer buf = ByteBuffer.wrap(randomBytes);
-			byte[] digest = Utils.sha256(session.getServerDigest(), CLIENT_CONST_CRUD);
-			byte[] message = new byte[HANDSHAKE_SIZE - SHA256_LEN];
-			buf.rewind();
-			buf.get(message);
-			byte[] signature = Utils.sha256(message, digest);
-			buf.put(signature);
-			buf.rewind();
+    public RtmpHandshake() {}
 
-			// update 'encoder / decoder state' for the RC4 keys
-			// both parties *pretend* as if handshake part 2 (1536 bytes) was encrypted
-			// effectively this hides / discards the first few bytes of encrypted session
-			// which is known to increase the secure-ness of RC4
-			// RC4 state is just a function of number of bytes processed so far
-			// that's why we just run 1536 arbitrary bytes through the keys below
-			byte[] dummyBytes = new byte[HANDSHAKE_SIZE];
-			session.getCipherIn().update(dummyBytes);
-			session.getCipherOut().update(dummyBytes);
+    public RtmpHandshake(boolean rtmpe, byte[] swfHash, int swfSize) {
+        this.rtmpe = rtmpe;
+        this.swfHash = swfHash;
+        this.swfSize = swfSize;
+    }
 
-			Handshake hs = new Handshake();
-			hs.data = buf;
-			return hs;
-		} else { // return server response part 1			
-			ByteBuffer buf = ByteBuffer.allocate(HANDSHAKE_SIZE);
-			buf.put(session.getServerResponse(), 1, HANDSHAKE_SIZE);
-			buf.flip();
-			Handshake hs = new Handshake();
-			hs.data = buf;
-			return hs;
-		}
-	}
+    public byte[] getSwfvBytes() {
+        return swfvBytes;
+    }
+
+    public Cipher getCipherIn() {
+        return cipherIn;
+    }
+
+    public Cipher getCipherOut() {
+        return cipherOut;
+    }
+
+    public boolean isRtmpe() {
+        return rtmpe;
+    }
+
+    //========================= ENCRYPT / DECRYPT ==============================
+
+    private void cipherUpdate(final ChannelBuffer in, final Cipher cipher) {
+        final int size = in.readableBytes();
+        final int position = in.readerIndex();
+        final byte[] bytes = new byte[size];
+        in.getBytes(position, bytes);
+        in.setBytes(position, cipher.update(bytes));
+    }
+
+    public void cipherUpdateIn(final ChannelBuffer in) {
+        cipherUpdate(in, cipherIn);
+    }
+
+    public void cipherUpdateOut(final ChannelBuffer in) {
+        cipherUpdate(in, cipherOut);
+    }
+
+    //============================== PKI =======================================
+
+    private void initKeyPair() {
+        final DHParameterSpec keySpec = new DHParameterSpec(DH_MODULUS, DH_BASE);
+        final KeyPair keyPair;
+        try {
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DH");
+            keyGen.initialize(keySpec);
+            keyPair = keyGen.generateKeyPair();
+            keyAgreement = KeyAgreement.getInstance("DH");
+            keyAgreement.init(keyPair.getPrivate());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        // extract public key bytes
+        DHPublicKey publicKey = (DHPublicKey) keyPair.getPublic();
+        BigInteger dh_Y = publicKey.getY();
+        ownPublicKey = dh_Y.toByteArray();        
+        byte[] temp = new byte[PUBLIC_KEY_SIZE];
+        if (ownPublicKey.length < PUBLIC_KEY_SIZE) {
+            // pad zeros on left
+            System.arraycopy(ownPublicKey, 0, temp, PUBLIC_KEY_SIZE - ownPublicKey.length, ownPublicKey.length);
+            ownPublicKey = temp;
+        } else if (ownPublicKey.length > PUBLIC_KEY_SIZE) {
+            // truncate zeros from left
+            System.arraycopy(ownPublicKey, ownPublicKey.length - PUBLIC_KEY_SIZE, temp, 0, PUBLIC_KEY_SIZE);
+            ownPublicKey = temp;
+        }
+    }
+
+    private void initCiphers() {
+        BigInteger otherPublicKeyInt = new BigInteger(1, peerPublicKey);
+        try {
+            KeyFactory keyFactory = KeyFactory.getInstance("DH");
+            KeySpec otherPublicKeySpec = new DHPublicKeySpec(otherPublicKeyInt, DH_MODULUS, DH_BASE);
+            PublicKey otherPublicKey = keyFactory.generatePublic(otherPublicKeySpec);
+            keyAgreement.doPhase(otherPublicKey, true);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        byte[] sharedSecret = keyAgreement.generateSecret();
+        byte[] digestOut = Utils.sha256(peerPublicKey, sharedSecret);
+        byte[] digestIn = Utils.sha256(ownPublicKey, sharedSecret);
+        try {
+            cipherOut = Cipher.getInstance("RC4");
+            cipherOut.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(digestOut, 0, 16, "RC4"));
+            cipherIn = Cipher.getInstance("RC4");
+            cipherIn.init(Cipher.DECRYPT_MODE, new SecretKeySpec(digestIn, 0, 16, "RC4"));
+            logger.info("initialized encryption / decryption ciphers");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        // update 'encoder / decoder state' for the RC4 keys
+        // both parties *pretend* as if handshake part 2 (1536 bytes) was encrypted
+        // effectively this hides / discards the first few bytes of encrypted session
+        // which is known to increase the secure-ness of RC4
+        // RC4 state is just a function of number of bytes processed so far
+        // that's why we just run 1536 arbitrary bytes through the keys below
+        byte[] dummyBytes = new byte[HANDSHAKE_SIZE];
+        cipherIn.update(dummyBytes);
+        cipherOut.update(dummyBytes);
+    }
+
+    //============================== CLIENT ====================================
+
+    public ChannelBuffer encodeClient0() {
+        ChannelBuffer out = ChannelBuffers.buffer(1);
+        if (rtmpe) {
+            out.writeByte((byte) 0x06);
+        } else {
+            out.writeByte((byte) 0x03);
+        }
+        return out;
+    }
+
+    public ChannelBuffer encodeClient1() {        
+        ChannelBuffer out = generateRandomHandshake();
+        out.setInt(0, 0); // zeros
+        out.setBytes(4, clientVersionToUse);
+        validationType = getValidationTypeForClientVersion(clientVersionToUse);
+        logger.info("using client version {}", Utils.toHex(clientVersionToUse));
+        if (validationType == 0) {
+            ownPartOne = out.copy(); // save for later
+            return out;
+        }        
+        logger.debug("creating client part 1, validation type: {}", validationType);
+        initKeyPair();
+        int publicKeyOffset = publicKeyOffset(out);
+        out.setBytes(publicKeyOffset, ownPublicKey);
+        int digestOffset = digestOffset(out);
+        ownPartOneDigest = digestHandshake(out, digestOffset, CLIENT_CONST);
+        out.setBytes(digestOffset, ownPartOneDigest);
+        return out;
+    }
+
+    public boolean decodeServerAll(ChannelBuffer in) {
+        decodeServer0(in.readBytes(1));
+        decodeServer1(in.readBytes(HANDSHAKE_SIZE));
+        decodeServer2(in.readBytes(HANDSHAKE_SIZE));
+        return true;
+    }
+
+    private void decodeServer0(ChannelBuffer in) {
+        byte flag = in.getByte(0);
+        if(rtmpe &&  flag != 0x06) {
+            logger.warn("server does not support rtmpe! falling back to rtmp");
+            rtmpe = false;
+        }
+    }
+
+    private void decodeServer1(ChannelBuffer in) {
+        peerTime = new byte[4];
+        in.getBytes(0, peerTime);
+        byte[] serverVersion = new byte[4];
+        in.getBytes(4, serverVersion);
+        logger.debug("server time: {}, version: {}", Utils.toHex(peerTime), Utils.toHex(serverVersion));
+        if(swfHash != null) {
+            // swf verification
+            byte[] key = new byte[DIGEST_SIZE];
+            in.getBytes(HANDSHAKE_SIZE - DIGEST_SIZE, key);
+            byte[] digest = Utils.sha256(swfHash, key);
+            // construct SWF verification pong payload
+            ChannelBuffer swfv = ChannelBuffers.buffer(42);
+            swfv.writeByte((byte) 0x01);
+            swfv.writeByte((byte) 0x01);
+            swfv.writeInt(swfSize);
+            swfv.writeInt(swfSize);
+            swfv.writeBytes(digest);
+            swfvBytes = new byte[42];            
+            swfv.readBytes(swfvBytes);
+            logger.info("calculated swf verification response: {}", Utils.toHex(swfvBytes));
+        }
+        if(validationType == 0) {
+            peerPartOne = in; // save for later
+            return;
+        }      
+        logger.debug("processing server part 1, validation type: {}", validationType);
+        int digestOffset = digestOffset(in);
+        byte[] expected = digestHandshake(in, digestOffset, SERVER_CONST);
+        peerPartOneDigest = new byte[DIGEST_SIZE];
+        in.getBytes(digestOffset, peerPartOneDigest);        
+        if (!Arrays.equals(peerPartOneDigest, expected)) {
+            throw new RuntimeException("server part 1 validation failed");
+        }
+        logger.info("server part 1 validation success");
+        peerPublicKey = new byte[PUBLIC_KEY_SIZE];
+        int publicKeyOffset = publicKeyOffset(in);
+        in.getBytes(publicKeyOffset, peerPublicKey);
+        initCiphers();
+    }
+
+    private void decodeServer2(ChannelBuffer in) {
+        if(validationType == 0) {
+            return; // TODO validate random echo
+        }
+        logger.debug("processing server part 2 for validation");
+        byte[] key = Utils.sha256(ownPartOneDigest, SERVER_CONST_CRUD);
+        int digestOffset = HANDSHAKE_SIZE - DIGEST_SIZE;
+        byte[] expected = digestHandshake(in, digestOffset, key);
+        byte[] actual = new byte[DIGEST_SIZE];
+        in.getBytes(digestOffset, actual);
+        if (!Arrays.equals(actual, expected)) {
+            throw new RuntimeException("server part 2 validation failed");
+        }
+        logger.info("server part 2 validation success");                       
+    }
+
+    public ChannelBuffer encodeClient2() {
+        if(validationType == 0) {
+            peerPartOne.setBytes(0, peerTime);
+            peerPartOne.setInt(4, 0); // more zeros
+            return peerPartOne;
+        }
+        logger.debug("creating client part 2 for validation");
+        ChannelBuffer out = generateRandomHandshake();
+        byte[] key = Utils.sha256(peerPartOneDigest, CLIENT_CONST_CRUD);
+        int digestOffset = HANDSHAKE_SIZE - DIGEST_SIZE;
+        byte[] digest = digestHandshake(out, digestOffset, key);
+        out.setBytes(digestOffset, digest);
+        return out;
+    }
+
+    //============================ SERVER ======================================
+
+    public void decodeClient0And1(ChannelBuffer in) {
+        decodeClient0(in.readBytes(1));
+        decodeClient1(in.readBytes(HANDSHAKE_SIZE));
+    }
+
+    public void decodeClient0(ChannelBuffer in) {
+        final byte firstByte = in.readByte();
+        rtmpe = firstByte == 0x06;
+        logger.debug("client first byte {}, rtmpe: {}", Utils.toHex(firstByte), rtmpe);        
+    }
+
+    public boolean decodeClient1(ChannelBuffer in) {
+        peerTime = new byte[4];
+        in.getBytes(0, peerTime);
+        byte[] clientVersion = new byte[4];
+        in.getBytes(4, clientVersion);
+        logger.debug("client time: {}, version: {}", Utils.toHex(peerTime), Utils.toHex(clientVersion));
+        validationType = getValidationTypeForClientVersion(clientVersion);
+        if(validationType == 0) {
+            peerPartOne = in; // save for later
+            return true;
+        }        
+        logger.debug("processing client part 1 for validation type: {}", validationType);
+        initKeyPair();
+        int digestOffset = digestOffset(in);
+        peerPartOneDigest = new byte[DIGEST_SIZE];
+        in.getBytes(digestOffset, peerPartOneDigest);
+        byte[] expected = digestHandshake(in, digestOffset, CLIENT_CONST);
+        if(!Arrays.equals(peerPartOneDigest, expected)) {
+            throw new RuntimeException("client part 1 validation failed");
+        }
+        logger.info("client part 1 validation success");
+        int publicKeyOffset = publicKeyOffset(in);
+        peerPublicKey = new byte[PUBLIC_KEY_SIZE];
+        in.getBytes(publicKeyOffset, peerPublicKey);
+        initCiphers();
+        return true;
+    }
+
+    public ChannelBuffer encodeServer0() {
+        ChannelBuffer out = ChannelBuffers.buffer(1);
+        out.writeByte((byte) (rtmpe ? 0x06 : 0x03));
+        return out;
+    }
+
+    public ChannelBuffer encodeServer1() {        
+        ChannelBuffer out = generateRandomHandshake();
+        out.setInt(0, 0); // zeros
+        out.setBytes(4, serverVersionToUse);
+        if(validationType == 0) {
+            ownPartOne = out.copy();
+            return out;
+        }
+        logger.debug("creating server part 1 for validation type: {}", validationType);
+        int dhOffset = publicKeyOffset(out);
+        out.setBytes(dhOffset, ownPublicKey);
+        int digestOffset = digestOffset(out);
+        ownPartOneDigest = digestHandshake(out, digestOffset, SERVER_CONST);
+        out.setBytes(digestOffset, ownPartOneDigest);
+        return out;
+    }
+
+    public void decodeClient2(ChannelBuffer raw) {
+        ChannelBuffer in = raw.readBytes(HANDSHAKE_SIZE);
+        if(validationType == 0) {
+            return;
+        }
+        logger.debug("processing client part 2 for validation");
+        byte[] key = Utils.sha256(ownPartOneDigest, CLIENT_CONST_CRUD);
+        int digestOffset = HANDSHAKE_SIZE - DIGEST_SIZE;
+        byte[] expected = digestHandshake(in, digestOffset, key);
+        byte[] actual = new byte[DIGEST_SIZE];
+        in.getBytes(digestOffset, actual);
+        if (!Arrays.equals(actual, expected)) {
+            throw new RuntimeException("client part 2 validation failed");
+        }
+        logger.info("client part 2 validation success");                
+    }
+
+    public ChannelBuffer encodeServer2() {
+        if(validationType == 0) {
+            peerPartOne.setBytes(0, peerTime); // zeros
+            peerPartOne.setInt(4, 0); // more zeros
+            return peerPartOne;
+        }
+        logger.debug("creating server part 2 for validation");
+        ChannelBuffer out = generateRandomHandshake();
+        byte[] key = Utils.sha256(peerPartOneDigest, SERVER_CONST_CRUD);
+        int digestOffset = HANDSHAKE_SIZE - DIGEST_SIZE;
+        byte[] digest = digestHandshake(out, digestOffset, key);
+        out.setBytes(digestOffset, digest);
+        return out;
+    }
 
 }

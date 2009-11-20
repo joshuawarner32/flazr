@@ -17,8 +17,23 @@
  * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr.amf;
+package com.flazr.rtmp;
 
-import java.util.LinkedHashMap;
+import com.flazr.rtmp.message.Metadata;
+import java.util.Iterator;
 
-public class Amf0Object extends LinkedHashMap<String, Object> { }
+public interface RtmpMessageReader extends Iterator<RtmpMessage> {
+
+    Metadata getMetadata();
+
+    RtmpMessage[] getStartMessages();
+
+    void setAggregateDuration(int targetDuration);
+
+    long getTimePosition();
+
+    long seek(long timePosition);
+
+    void close();
+
+}

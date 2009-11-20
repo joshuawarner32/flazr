@@ -1,124 +1,125 @@
 /*
- * Copyright 2002-2005 the original author or authors.
+ * Flazr <http://flazr.com> Copyright (C) 2009  Peter Thomas.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This file is part of Flazr.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Flazr is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Flazr is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr;
+package com.flazr.io.flv;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.channels.FileChannel;
 
-import org.apache.mina.common.ByteBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.flazr.Packet.Type;
+import com.flazr.rtmp.RtmpHeader;
+import com.flazr.rtmp.RtmpMessage;
+import org.jboss.netty.buffer.ChannelBuffer;
 
-public class FlvWriter implements OutputWriter {
-	
-	private static final Logger logger = LoggerFactory.getLogger(FlvWriter.class);
-		
-	private ByteBuffer out;
-	private FileChannel channel;
-	private FileOutputStream fos;	
-	private WriterStatus status;	
-	
-	public FlvWriter(int seekTime, String fileName) {	
-		status = new WriterStatus(seekTime);
-		try {
-			File file = new File(fileName);
-			fos = new FileOutputStream(file);
-			channel = fos.getChannel();
-			logger.info("opened file for writing: " + file.getAbsolutePath());
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-		out = ByteBuffer.allocate(1024);
-		out.setAutoExpand(true);		
-		writeHeader();	
-	}
-	
-	public void close() {
-		try {
-			channel.close();
-			fos.close();
-		} catch(Exception e) {
-			throw new RuntimeException(e);
-		}		
-		status.logFinalVideoDuration();
-	}
-	
-	private void writeHeader() {
-		out.put((byte) 0x46); // F
-		out.put((byte) 0x4C); // L
-		out.put((byte) 0x56); // V
-		out.put((byte) 0x01); // version		
-		out.put((byte) 0x05); // flags: audio + video
-		out.putInt(0x09); // header size = 9
-		out.putInt(0); // previous tag size, here = 0
-		out.flip();
-		write(out);				
-	}	
-	
-	public synchronized void write(Packet packet) {			
-		Header header = packet.getHeader();
-		int time = status.getChannelAbsoluteTime(header);
-		write(header.getPacketType(), packet.getData(), time);
-	}		
-	
-	public synchronized void writeFlvData(ByteBuffer data) {
-		while(data.hasRemaining()) {		
-			Type packetType = Type.parseByte(data.get());												
-			int size = Utils.readInt24(data);			
-			int timestamp = Utils.readInt24(data);
-			status.updateVideoChannelTime(timestamp);
-			data.getInt(); // 4 bytes of zeros (reserved)
-			byte[] bytes = new byte[size];
-			data.get(bytes);
-			ByteBuffer temp = ByteBuffer.wrap(bytes);
-			write(packetType, temp, timestamp);  
-			data.getInt(); // FLV tag size (size + 11)
-		}		
-	}
-	
-	public synchronized void write(Type packetType, ByteBuffer data, final int time) {		
-		if(logger.isDebugEnabled()) {
-			logger.debug("writing FLV tag {} t{} {}", new Object[]{ packetType, time, data});
-		}				
-		out.clear();
-		out.put(packetType.byteValue());		
-		final int size = data.limit();
-		Utils.writeInt24(out, size);
-		Utils.writeInt24(out, time);
-		out.putInt(0); // 4 bytes of zeros (reserved)	
-		out.flip();
-		write(out);			
-		write(data);		
-		//==========
-		out.clear();
-		out.putInt(size + 11); // previous tag size
-		out.flip();
-		write(out);
-	}
-	
-	private void write(ByteBuffer buffer) {		
-		try {
-			channel.write(buffer.buf());
-		} catch(Exception e) {
-			throw new RuntimeException(e);
-		}
-	}		
-	
+public class FlvWriter {
+
+    private static final Logger logger = LoggerFactory.getLogger(FlvWriter.class);
+
+    private final FileChannel out;
+    private final int[] channelTimes = new int[RtmpHeader.MAX_CHANNEL_ID];
+    private int primaryChannel = -1;
+    private int lastLoggedSeconds;
+    private final int seekTime;
+
+    public FlvWriter(String fileName) {
+        this(0, fileName);
+    }
+
+    public FlvWriter(int seekTime, String fileName) {
+        this.seekTime = seekTime;
+        if(fileName == null) {
+            logger.info("save file notspecified, will only consume stream");
+            out = null;
+            return;
+        }
+        try {
+            File file = new File(fileName);
+            FileOutputStream fos = new FileOutputStream(file);
+            out = fos.getChannel();
+            out.write(FlvAtom.flvHeader().toByteBuffer());
+            logger.info("opened file for writing: {}", file.getAbsolutePath());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }        
+    }
+
+    public void close() {
+        if(out != null) {
+            try {
+                out.close();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        logger.info("final media duration: {} seconds (seek time: {})",
+                (channelTimes[primaryChannel] - seekTime) / 1000, seekTime / 1000);
+    }
+
+    private void logWriteProgress() {
+        final int seconds = (channelTimes[primaryChannel] - seekTime) / 1000;
+        if (seconds >= lastLoggedSeconds + 10) {
+            logger.info("write progress: " + seconds + " seconds");
+            lastLoggedSeconds = seconds - (seconds % 10);
+        }
+    }
+
+    public void write(RtmpMessage message) {
+        RtmpHeader header = message.getHeader();
+        if(header.isAggregate()) {
+            final ChannelBuffer in = message.encode();
+            while (in.readable()) {
+                final FlvAtom flvAtom = new FlvAtom(in);
+                final int absoluteTime = flvAtom.getHeader().getTime();
+                channelTimes[primaryChannel] = absoluteTime;
+                write(flvAtom);
+                // logger.debug("aggregate atom: {}", flvAtom);
+                logWriteProgress();
+            }
+        } else { // METADATA / AUDIO / VIDEO
+            final int channelId = header.getChannelId();                        
+            channelTimes[channelId] = seekTime + header.getTime();
+            if(primaryChannel == -1 && (header.isAudio() || header.isVideo())) {
+                logger.info("first media packet for channel: {}", header);
+                primaryChannel = channelId;
+            }
+            if(header.getSize() <= 2) {
+                return;
+            }
+            write(new FlvAtom(header.getMessageType(), channelTimes[channelId], message.encode()));
+            if (channelId == primaryChannel) {
+                logWriteProgress();
+            }
+        }
+    }
+
+    private void write(final FlvAtom flvAtom) {
+        if(out == null) {
+            return;
+        }
+        try {
+            out.write(flvAtom.write().toByteBuffer());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
 }

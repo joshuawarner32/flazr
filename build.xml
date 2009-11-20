@@ -36,7 +36,8 @@
     
     <target name="compile" depends="mvn-init">
         <mkdir dir="target/classes"/>        
-        <javac srcdir="src/main/java" destdir="target/classes" debug="true" classpathref="compile.classpath" source="1.5" target="1.5"/>
+        <javac srcdir="src/main/java" destdir="target/classes" debug="true" 
+            classpathref="compile.classpath" source="1.6" target="1.6"/>
         <copy todir="target/classes">
             <fileset dir="src/main/java" excludes="**/*.java"/>
         </copy>         
@@ -47,7 +48,8 @@
     
     <target name="compile-test" depends="compile">   
         <mkdir dir="target/test-classes"/>
-        <javac srcdir="src/test/java" destdir="target/test-classes" debug="true" source="1.5" target="1.5">
+        <javac srcdir="src/test/java" destdir="target/test-classes" debug="true" 
+            source="1.6" target="1.6">
             <classpath>
                 <path path="target/classes"/>
                 <path refid="test.classpath"/>
@@ -62,29 +64,53 @@
     
     <target name="dist" depends="compile">    
         <input message="Release Version:" addproperty="flazr.version"/>
-        <copy todir="target/flazr/lib" flatten="true">
-            <fileset refid="runtime.fileset"/>         
-        </copy>        
+        <copy todir="target/flazr/lib" flatten="true">            
+            <fileset refid="runtime.fileset"/>
+        </copy>
+        <!-- temp exclude for server release -->
+        <delete dir="target/flazr/lib" includes="groovy*"/>
         <jar destfile="target/flazr/lib/flazr-${flazr.version}.jar">
-            <fileset dir="target/classes"/>
+            <fileset dir="target/classes" excludes="log4j.properties"/>
         </jar>
+        <copy todir="target/flazr/home/apps/vod">
+            <fileset dir="home/apps/vod"/>
+        </copy>
+        <copy todir="target/flazr/conf">
+            <fileset dir="conf"/>
+            <fileset dir="etc" includes="log4j.properties"/>
+        </copy>
+        <!-- temp for server release
         <copy todir="target/flazr/scripts">
             <fileset dir="etc" includes="*.groovy"/>         
         </copy>
+        -->
         <copy todir="target/flazr">
             <fileset dir="." includes="*.txt"/>         
-        </copy>     
-        <fileset id="lib.jars" dir="target/flazr/lib"/>
+        </copy>        
+        <path id="lib.jars">
+            <path location="target/flazr/conf"/>
+            <fileset dir="target/flazr/lib"/>
+        </path>
         <pathconvert targetos="unix" property="lib.jars.path.unix" refid="lib.jars">
+            <map from="${basedir}/target/flazr/conf" to="conf"/>
             <map from="${basedir}/target/flazr/lib" to="lib"/>
         </pathconvert>
-        <concat destfile="target/flazr/flazr.sh">java -cp ${lib.jars.path.unix} groovy.lang.GroovyShell $*</concat>
         <pathconvert targetos="windows" property="lib.jars.path.windows" refid="lib.jars">
-            <map from="${basedir}/target/flazr/lib" to="lib"/>
+            <map from="${basedir}/target/flazr/conf" to="conf"/>
+            <map from="${basedir}/target/flazr/lib" to="lib"/>            
         </pathconvert>
-        <concat destfile="target/flazr/flazr.bat">java -cp ${lib.jars.path.windows} groovy.lang.GroovyShell %*</concat>
+        <concat destfile="target/flazr/client.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-client com.flazr.rtmp.client.RtmpClientSession $*</concat>
+        <concat destfile="target/flazr/client.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-client com.flazr.rtmp.client.RtmpClientSession %*</concat>
+        <concat destfile="target/flazr/server-start.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-server com.flazr.rtmp.server.RtmpServer $*</concat>
+        <concat destfile="target/flazr/server-start.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-server com.flazr.rtmp.server.RtmpServer %*</concat>
+        <concat destfile="target/flazr/server-stop.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-stop com.flazr.rtmp.server.RtmpServerStop $*</concat>
+        <concat destfile="target/flazr/server-stop.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-stop com.flazr.rtmp.server.RtmpServerStop %*</concat>
+        <concat destfile="target/flazr/proxy-start.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-proxy com.flazr.rtmp.proxy.RtmpProxy $*</concat>
+        <concat destfile="target/flazr/proxy-start.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-proxy com.flazr.rtmp.proxy.RtmpProxy %*</concat>
+        <concat destfile="target/flazr/proxy-stop.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-stop com.flazr.rtmp.proxy.RtmpProxyStop $*</concat>
+        <concat destfile="target/flazr/proxy-stop.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-stop com.flazr.rtmp.proxy.RtmpProxyStop %*</concat>
         <zip destfile="target/flazr-${flazr.version}.zip">
-            <zipfileset dir="target/flazr" prefix="flazr-${flazr.version}"/>
+            <zipfileset dir="target/flazr" excludes="home/apps/vod/*" prefix="flazr-${flazr.version}"/>
         </zip>      
     </target>    
               

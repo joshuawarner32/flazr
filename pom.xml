@@ -5,18 +5,18 @@
     <groupId>com.flazr</groupId>
     <artifactId>flazr</artifactId>
     <packaging>jar</packaging>
-    <version>0.5</version>
+    <version>0.7</version>
     <name>Flazr</name>
     <description>
-        Flazr is a Java implementation of the RTMP protocol used for streaming videos to 
-        Adobe Flash player based clients. Flazr can connect to an RTMP stream and save it to a file.
+        Flazr is a Java implementation of protocols such as RTMP used for multimedia streaming.
+        The Flazr project includes a streaming media server and related utilities.
     </description>
     <url>http://flazr.com</url>
     
     <licenses>
         <license>
-            <name>The Apache Software License, Version 2.0</name>
-            <url>license.txt</url>
+            <name>GNU Lesser General Public License, Version 3</name>
+            <url>COPYING.LESSER</url>
         </license>
     </licenses>
     
@@ -34,12 +34,19 @@
         </developer>
     </developers>    
     
+    <repositories>
+        <repository>
+            <id>jboss.org</id>
+            <url>http://repository.jboss.com/maven2</url>
+        </repository>
+    </repositories>
+
     <dependencies>
         <dependency>
-            <groupId>org.apache.mina</groupId>
-            <artifactId>mina-core</artifactId>
-            <version>1.1.7</version>
-        </dependency>    
+            <groupId>org.jboss.netty</groupId>
+            <artifactId>netty</artifactId>
+            <version>3.1.5.GA</version>
+        </dependency>
         <dependency>
             <groupId>commons-httpclient</groupId>
             <artifactId>commons-httpclient</artifactId>
@@ -73,27 +80,7 @@
             <artifactId>junit</artifactId>
             <version>4.5</version>
             <scope>test</scope>
-        </dependency> 
-        <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-            <version>1.6.0</version>
-            <scope>runtime</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.apache.ant</groupId>
-                    <artifactId>ant</artifactId>
-                </exclusion>  
-                <exclusion>
-                    <groupId>org.apache.ant</groupId>
-                    <artifactId>ant-launcher</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>jline</groupId>
-                    <artifactId>jline</artifactId>
-                </exclusion>                
-            </exclusions>             
-        </dependency>        
+        </dependency>       
     </dependencies>
 
     <build>
@@ -102,8 +89,8 @@
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>1.5</source>
-                    <target>1.5</target>
+                    <source>1.6</source>
+                    <target>1.6</target>
                 </configuration>
             </plugin>
             <plugin>

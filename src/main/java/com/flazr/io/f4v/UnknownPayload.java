@@ -17,8 +17,33 @@
  * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr.amf;
+package com.flazr.io.f4v;
 
-import java.util.LinkedHashMap;
+import org.jboss.netty.buffer.ChannelBuffer;
 
-public class Amf0Object extends LinkedHashMap<String, Object> { }
+public class UnknownPayload implements Payload {
+
+    private BoxType type;
+    private ChannelBuffer data;
+
+    public UnknownPayload(ChannelBuffer in, BoxType type) {
+        this.data = in;
+        this.type = type;
+    }
+
+    @Override
+    public void read(ChannelBuffer in) {
+        data = in;
+    }
+
+    @Override
+    public ChannelBuffer write() {
+        return data;
+    }
+
+    @Override
+    public String toString() {
+        return "[" + type + " (unknown) " + data + "]";
+    }
+
+}

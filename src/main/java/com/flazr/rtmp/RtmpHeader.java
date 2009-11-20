@@ -1,263 +1,289 @@
 /*
- * Copyright 2002-2005 the original author or authors.
+ * Flazr <http://flazr.com> Copyright (C) 2009  Peter Thomas.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This file is part of Flazr.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Flazr is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Flazr is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr;
+package com.flazr.rtmp;
 
-import org.apache.mina.common.ByteBuffer;
+import com.flazr.rtmp.message.*;
+import com.flazr.util.ByteToEnum;
+import com.flazr.util.Utils;
+import org.jboss.netty.buffer.ChannelBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Header {		
-	
-	private static final Logger logger = LoggerFactory.getLogger(Header.class);
-	
-	public static enum Type implements ByteToEnum.Convert {
-		
-		LARGE(0x00, 12),
-		MEDIUM(0x01, 8),
-		SMALL(0x02, 4),
-		TINY(0x03, 1);
-		
-		private final byte value;
-		private final int size;
-		
-		private Type(int value, int size) {
-			this.value = (byte) value;
-			this.size = size;
-		}		
-        
+public class RtmpHeader {
+    
+    private static final Logger logger = LoggerFactory.getLogger(RtmpHeader.class);
+
+    public static enum Type implements ByteToEnum.Convert {
+
+        LARGE(0x00), MEDIUM(0x01), SMALL(0x02), TINY(0x03);
+
+        private final byte value;        
+
+        private Type(int value) {
+            this.value = (byte) value;            
+        }
+
+        @Override
         public byte byteValue() {
             return value;
         }
-        
-        private static ByteToEnum<Type> converter = new ByteToEnum<Type>(Type.values());
-        
+
+        private static final ByteToEnum<Type> converter = new ByteToEnum<Type>(Type.values());
+
         public static Type parseByte(byte b) {
             return converter.parseByte(b);
-        }    
-        
-        @Override
-        public String toString() {
-            return converter.toString(this);
-        }		
-		
-	}
-	
-	private Type headerType;
-	private int channelId;
-	private int time;
-	private int size;	
-	private Packet.Type packetType;
-	private int streamId;
-	private boolean relative = true;
-	
-	public Header() { }	
-	
-	public Header(Type headerType, int channelId, Packet.Type packetType) {
-		this.headerType = headerType;		
-		this.channelId = channelId;
-		this.packetType = packetType;
-	}
-	
-	public Type getHeaderType() {
-		return headerType;
-	}
-	
-	public int getTime() {
-		return time;
-	}
-	
-	public void setTime(int time) {
-		this.time = time;
-	}
-	
-	public Packet.Type getPacketType() {
-		return packetType;
-	}
-	
-	public void setPacketType(Packet.Type packetType) {
-		this.packetType = packetType;
-	}	
-	
-	public int getSize() {
-		return size;
-	}
-	
-	public void setSize(int size) {
-		this.size = size;
-	}
-	
-	public int getStreamId() {
-		return streamId;
-	}
-	
-	public void setStreamId(int streamId) {
-		this.streamId = streamId;
-	}
-	
-	public int getChannelId() {
-		return channelId;
-	}
-	
-	public boolean isRelative() {
-		return relative;
-	}
-	
-	public void setRelative(boolean relative) {
-		this.relative = relative;
-	}
-	
-	public boolean decode(ByteBuffer in, RtmpSession session) {
-		
-		final int remaining = in.remaining();
-		
-        if(remaining < 1) {
-        	return false;
-        }                
-        
-        final byte firstByte = in.get();
-        
-		final int typeAndChannel;
-		final int markerSize;        
-        
-		if ((firstByte & 0x3f) == 0) {
-			if (remaining < 2) {				
-				return false;
-			}
-			markerSize = 2;
-			typeAndChannel = ((int) firstByte & 0xff) << 8 | ((int) in.get() & 0xff);			
-		} else if ((firstByte & 0x3f) == 1) {
-			if (remaining < 3) {				
-				return false;
-			}
-			markerSize = 3;
-			typeAndChannel = ((int) firstByte & 0xff) << 16 | ((int) in.get() & 0xff) << 8 | ((int) in.get() & 0xff);			
-		} else {
-			markerSize = 1;
-			typeAndChannel = (int) firstByte & 0xff;			
-		}				
-		
-		if (markerSize == 1) {
-			channelId = (typeAndChannel & 0x3f);
-		} else if (markerSize == 2) {
-			channelId = 64 + (typeAndChannel & 0xff);
-		} else {
-			channelId = 64 + ((typeAndChannel >> 8) & 0xff) + ((typeAndChannel & 0xff) << 8);
-		}				
-		
-		final byte headerTypeByte;
-		
-    	if (markerSize == 1) {
-    		headerTypeByte = (byte) (typeAndChannel >> 6);
-    	} else if (markerSize == 2) {
-    		headerTypeByte = (byte) (typeAndChannel >> 14);
-    	} else {
-    		headerTypeByte = (byte) (typeAndChannel >> 22);
-    	}		
-		
-    	headerType = Header.Type.parseByte(headerTypeByte);    	    	
-    	
-    	if(remaining < markerSize + headerType.size - 1) {    		
-    		return false;
-    	}    	    	
-    	
-    	final Header prevHeader = session.getPrevHeadersIn().get(channelId);
-    	    	
-    	// TODO handle 'extended' time values greater than 3 bytes
-		switch(headerType) {
-			case LARGE:
-				time = Utils.readInt24(in);
-				size = Utils.readInt24(in);
-				packetType = Packet.Type.parseByte(in.get());
-				streamId = Utils.readInt32Reverse(in);
-				relative = false;
-				break;
-			case MEDIUM:
-				time = Utils.readInt24(in);
-				size = Utils.readInt24(in);
-				packetType = Packet.Type.parseByte(in.get());
-				streamId = prevHeader.streamId;				
-				break;
-			case SMALL:
-				time = Utils.readInt24(in);
-				size = prevHeader.size;
-				packetType = prevHeader.packetType;
-				streamId = prevHeader.streamId;				
-				break;
-			case TINY:
-				time = prevHeader.time;
-				size = prevHeader.size;
-				packetType = prevHeader.packetType;
-				streamId = prevHeader.streamId;				
-				break;
-		}    	    	
-    	return true;		
-	}		
-	
-	public void encode(ByteBuffer out) {		
-		if(channelId <= 63) {
-			out.put((byte) ((headerType.value << 6) + channelId));			
-		} else if(channelId <= 320) {
-			out.put((byte) (headerType.value << 6));
-			out.put((byte) (channelId - 64));			
-		} else {
-			out.put((byte) ((headerType.value << 6) | 1));
-			int tempChannelId = channelId - 64;
-			out.put((byte) (tempChannelId & 0xff));
-			out.put((byte) (tempChannelId >> 8));			
-		}
-		switch(headerType) {
-			case LARGE:
-				Utils.writeInt24(out, time);
-				Utils.writeInt24(out, size);
-				out.put(packetType.byteValue());
-				Utils.writeInt32Reverse(out, streamId);
-				break;
-			case MEDIUM:
-				Utils.writeInt24(out, time);
-				Utils.writeInt24(out, size);
-				out.put(packetType.byteValue());
-				break;
-			case SMALL:
-				Utils.writeInt24(out, time);
-				break;
-			case TINY:
-				break;
-		}
-		if(logger.isDebugEnabled()) {
-			byte[] bytes = new byte[out.position()];
-			out.rewind();
-			out.get(bytes);
-			logger.debug("encoded header: " + toString() + " --> "+ Utils.toHex(bytes));
-		}
-	}	
-	
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder();
-		sb.append('[').append(headerType);
-		sb.append(" c").append(channelId);
-		sb.append(" t").append(time);
-		if(!relative) {
-			sb.append("(a)");
-		}
-		sb.append(" s").append(size);
-		sb.append(" #").append(streamId);
-		sb.append(" ").append(packetType).append(']');			
-		return sb.toString();
-	}
+        }
+
+    }
+
+    public static final int MAX_CHANNEL_ID = 65600;
+    public static final int MAX_NORMAL_HEADER_TIME = 0xFFFFFF;
+    public static final int MAX_ENCODED_SIZE = 18;
+
+    private Type headerType;
+    private int channelId;
+    private int deltaTime;
+    private int time;    
+    private int size;
+    private MessageType messageType;
+    private int streamId;
+
+    public RtmpHeader(ChannelBuffer in, RtmpHeader[] incompleteHeaders) {
+        //=================== TYPE AND CHANNEL (1 - 3 bytes) ===================
+        final byte firstByte = in.readByte();
+        final int typeAndChannel;
+        final byte headerTypeByte;
+        if ((firstByte & 0x3f) == 0) {
+            typeAndChannel = ((int) firstByte & 0xff) << 8 | ((int) in.readByte() & 0xff);
+            channelId = 64 + (typeAndChannel & 0xff);
+            headerTypeByte = (byte) (typeAndChannel >> 14);
+        } else if ((firstByte & 0x3f) == 1) {
+            typeAndChannel = ((int) firstByte & 0xff) << 16 | ((int) in.readByte() & 0xff) << 8 | ((int) in.readByte() & 0xff);
+            channelId = 64 + ((typeAndChannel >> 8) & 0xff) + ((typeAndChannel & 0xff) << 8);
+            headerTypeByte = (byte) (typeAndChannel >> 22);
+        } else {
+            typeAndChannel = (int) firstByte & 0xff;
+            channelId = (typeAndChannel & 0x3f);
+            headerTypeByte = (byte) (typeAndChannel >> 6);
+        }
+        headerType = Type.parseByte(headerTypeByte);
+        //========================= REMAINING HEADER ===========================
+        final RtmpHeader prevHeader = incompleteHeaders[channelId];
+        // logger.debug("so far: {}, prev {}", this, prevHeader);
+        switch(headerType) {
+            case LARGE:
+                time = in.readMedium();
+                size = in.readMedium();
+                messageType = MessageType.parseByte(in.readByte());
+                streamId = Utils.readInt32Reverse(in);
+                if(time == MAX_NORMAL_HEADER_TIME) {
+                    time = in.readInt();
+                }
+                break;
+            case MEDIUM:
+                deltaTime = in.readMedium();
+                size = in.readMedium();
+                messageType = MessageType.parseByte(in.readByte());
+                streamId = prevHeader.streamId;
+                if(deltaTime == MAX_NORMAL_HEADER_TIME) {
+                    deltaTime = in.readInt();
+                }
+                break;
+            case SMALL:
+                deltaTime = in.readMedium();
+                size = prevHeader.size;
+                messageType = prevHeader.messageType;
+                streamId = prevHeader.streamId;
+                if(deltaTime == MAX_NORMAL_HEADER_TIME) {
+                    deltaTime = in.readInt();
+                }
+                break;
+            case TINY:
+                headerType = prevHeader.headerType; // preserve original
+                time = prevHeader.time;
+                deltaTime = prevHeader.deltaTime;
+                size = prevHeader.size;
+                messageType = prevHeader.messageType;
+                streamId = prevHeader.streamId;
+                break;
+        }        
+    }
+
+    public RtmpHeader(MessageType messageType, int time, int size) {
+        this(messageType);
+        this.time = time;
+        this.size = size;
+    }
+
+    public RtmpHeader(MessageType messageType) {
+        this.messageType = messageType;
+        headerType = Type.LARGE;
+        channelId = messageType.getDefaultChannelId();
+    }
+
+    public boolean isMedia() {
+        switch(messageType) {
+            case AUDIO:
+            case VIDEO:
+            case AGGREGATE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public boolean isAggregate() {
+        return messageType == MessageType.AGGREGATE;
+    }
+
+    public boolean isAudio() {
+        return messageType == MessageType.AUDIO;
+    }
+
+    public boolean isVideo() {
+        return messageType == MessageType.VIDEO;
+    }
+
+    public boolean isLarge() {
+        return headerType == Type.LARGE;
+    }
+
+    public boolean isControl() {
+        return messageType == MessageType.CONTROL;
+    }
+
+    public boolean isChunkSize() {
+        return messageType == MessageType.CHUNK_SIZE;
+    }
+
+    public Type getHeaderType() {
+        return headerType;
+    }
+
+    public void setHeaderType(Type headerType) {
+        this.headerType = headerType;
+    }
+
+    public int getChannelId() {
+        return channelId;
+    }
+
+    public void setChannelId(int channelId) {
+        this.channelId = channelId;
+    }
+
+    public int getTime() {
+        return time;
+    }
+
+    public void setTime(int time) {
+        this.time = time;
+    }
+
+    public int getDeltaTime() {
+        return deltaTime;
+    }
+
+    public void setDeltaTime(int deltaTime) {
+        this.deltaTime = deltaTime;
+    }
+
+    public void setSize(int size) {
+        this.size = size;
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public MessageType getMessageType() {
+        return messageType;
+    }
+
+    public void setMessageType(MessageType messageType) {
+        this.messageType = messageType;
+    }
+
+    public int getStreamId() {
+        return streamId;
+    }
+
+    public void setStreamId(int streamId) {
+        this.streamId = streamId;
+    }
+
+    public void encode(ChannelBuffer out) {
+        out.writeBytes(encodeHeaderTypeAndChannel(headerType.value, channelId));
+        if(headerType == Type.TINY) {
+            return;
+        }     
+        final boolean extendedTime;
+        if(headerType == Type.LARGE) {
+            extendedTime = time >= MAX_NORMAL_HEADER_TIME;             
+        } else {
+            extendedTime = deltaTime >= MAX_NORMAL_HEADER_TIME;
+        }
+        if(extendedTime) {
+            out.writeMedium(MAX_NORMAL_HEADER_TIME); 
+        } else {                                        // LARGE / MEDIUM / SMALL
+            out.writeMedium(headerType == Type.LARGE ? time : deltaTime);
+        }
+        if(headerType != Type.SMALL) {
+            out.writeMedium(size);                      // LARGE / MEDIUM
+            out.writeByte(messageType.byteValue());     // LARGE / MEDIUM
+            if(headerType == Type.LARGE) {
+                Utils.writeInt32Reverse(out, streamId); // LARGE
+            }
+        }
+        if(extendedTime) {
+            out.writeInt(headerType == Type.LARGE ? time : deltaTime);
+        }
+    }
+
+    public byte[] getTinyHeader() {
+        return encodeHeaderTypeAndChannel(Type.TINY.byteValue(), channelId);
+    }
+
+    private static byte[] encodeHeaderTypeAndChannel(final byte headerTypeByte, final int channelId) {        
+        if (channelId <= 63) {
+            return new byte[] {(byte) ((headerTypeByte << 6) + channelId)};
+        } else if (channelId <= 320) {
+            return new byte[] {(byte) (headerTypeByte << 6), (byte) (channelId - 64)};
+        } else {            
+            return new byte[] {(byte) ((headerTypeByte << 6) | 1),
+                (byte) ((channelId - 64) & 0xff), (byte) ((channelId - 64) >> 8)};
+        }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append('[').append(headerType.ordinal());
+        sb.append(' ').append(messageType);
+        sb.append(" c").append(channelId);        
+        sb.append(" #").append(streamId);        
+        sb.append(" t").append(time);
+        sb.append(" (").append(deltaTime);
+        sb.append(") s").append(size);
+        sb.append(']');
+        return sb.toString();
+    }
 
 }

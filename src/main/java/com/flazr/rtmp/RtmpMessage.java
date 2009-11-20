@@ -17,8 +17,16 @@
  * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr.amf;
+package com.flazr.rtmp;
 
-import java.util.LinkedHashMap;
+import org.jboss.netty.buffer.ChannelBuffer;
 
-public class Amf0Object extends LinkedHashMap<String, Object> { }
+public interface RtmpMessage {
+
+    RtmpHeader getHeader();
+    
+    ChannelBuffer encode();
+
+    void decode(ChannelBuffer in);
+
+}

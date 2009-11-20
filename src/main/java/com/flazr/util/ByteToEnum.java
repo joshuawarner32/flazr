@@ -1,23 +1,25 @@
 /*
- * Copyright 2002-2005 the original author or authors.
+ * Flazr <http://flazr.com> Copyright (C) 2009  Peter Thomas.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This file is part of Flazr.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Flazr is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Flazr is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr;
+package com.flazr.util;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 
 /**
  * a little bit of code reuse, would have been cleaner if enum types
@@ -25,30 +27,42 @@ import java.util.Map;
  * and have to construct a static instance in each enum type we use
  */
 public class ByteToEnum<T extends Enum<T> & ByteToEnum.Convert> {
-	
-	public interface Convert {
-		byte byteValue();
-	}
-	
-	private Map<Byte, T> map;
-	
-	public ByteToEnum(T[] values) {		
-		map = new HashMap<Byte, T>(values.length);
-		for(T t : values) {			
-			map.put(t.byteValue(), t);
-		}
-	}
-	
-	public T parseByte(byte b) {
-		T t = map.get(b);
-		if(t == null) {
-			throw new RuntimeException("bad byte: " + Utils.toHex(b));
-		}
-		return t;
-	}
-	
-	public String toString(T t) {
-		return t.name() + "(0x" + Utils.toHex(t.byteValue()) + ")";
-	}
+
+    public static interface Convert {
+        byte byteValue();
+    }
+
+    private final Enum[] lookupArray;
+    private final int maxIndex;
+
+    public ByteToEnum(T[] enumValues) {
+        final int[] lookupIndexes = new int[enumValues.length];
+        for(int i = 0; i < enumValues.length; i++) {
+            lookupIndexes[i] = enumValues[i].byteValue();
+        }
+        Arrays.sort(lookupIndexes);
+        maxIndex = lookupIndexes[lookupIndexes.length - 1];        
+        lookupArray = new Enum[maxIndex + 1]; // use 1 based index
+        for (final T t : enumValues) {
+            lookupArray[t.byteValue()] = t;
+        }        
+    }
+
+    public T parseByte(final byte b) {
+        final T t;
+        try {
+            t = (T) lookupArray[b];
+        } catch(Exception e) { // index out of bounds
+            throw new RuntimeException("bad byte: " + Utils.toHex(b) + " " + e);
+        }
+        if (t == null) {
+            throw new RuntimeException("bad byte: " + Utils.toHex(b));
+        }
+        return t;
+    }
+
+    public int getMaxIndex() {
+        return maxIndex;
+    }
 
 }

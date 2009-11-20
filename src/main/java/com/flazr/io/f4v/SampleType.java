@@ -17,8 +17,25 @@
  * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr.amf;
+package com.flazr.io.f4v;
 
-import java.util.LinkedHashMap;
+public enum SampleType {
 
-public class Amf0Object extends LinkedHashMap<String, Object> { }
+    AVC1(true),
+    MP4A(false);
+    
+    private final boolean video;
+
+    SampleType(boolean video) {
+        this.video = video;
+    }
+
+    public boolean isVideo() {
+        return video;
+    }
+
+    public static SampleType parse(String type) {
+        return SampleType.valueOf(type.toUpperCase());
+    }
+
+}

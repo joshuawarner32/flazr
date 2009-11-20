@@ -17,8 +17,15 @@
  * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr.amf;
+package com.flazr.rtmp.proxy;
 
-import java.util.LinkedHashMap;
+import com.flazr.rtmp.RtmpConfig;
+import com.flazr.util.Utils;
 
-public class Amf0Object extends LinkedHashMap<String, Object> { }
+public class RtmpProxyStop {
+
+    public static void main(String[] args) {
+        Utils.sendStopSignal(RtmpConfig.configureProxyStop());
+    }
+
+}

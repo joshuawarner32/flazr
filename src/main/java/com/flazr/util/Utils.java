@@ -1,204 +1,177 @@
 /*
- * Copyright 2002-2005 the original author or authors.
+ * Flazr <http://flazr.com> Copyright (C) 2009  Peter Thomas.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This file is part of Flazr.
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Flazr is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Flazr is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr;
+package com.flazr.util;
 
+import com.flazr.*;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.Socket;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.mina.common.ByteBuffer;
+import org.jboss.netty.buffer.ChannelBuffer;
 
-public class Utils {	
-	
-    public static int readInt24(ByteBuffer in) {
-		int val = 0;
-		val += (in.get() & 0xFF) * 256 * 256;
-		val += (in.get() & 0xFF) * 256;
-		val += (in.get() & 0xFF);
-		return val;
-	}	
-	
-	public static void writeInt24(ByteBuffer out, int value) {
-		out.put((byte) (0xFF & (value >> 16)));
-		out.put((byte) (0xFF & (value >> 8)));
-		out.put((byte) (0xFF & (value >> 0)));
-	}	
-	
-	public static int readInt32Reverse(ByteBuffer in) {
-		final byte a = in.get();
-		final byte b = in.get();
-		final byte c = in.get();
-		final byte d = in.get();
-		int val = 0;
-		val += d << 24;
-		val += c << 16;
-		val += b << 8;
-		val += a;
-		return val;
-	}	
-	
-	public static void writeInt32Reverse(ByteBuffer out, int value) {
-		out.put((byte) (0xFF & value));
-		out.put((byte) (0xFF & (value >> 8)));
-		out.put((byte) (0xFF & (value >> 16)));
-		out.put((byte) (0xFF & (value >> 24)));
-	}
-	
-	private static final char[] HEX_DIGITS = { 
-		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 
-		'A', 'B', 'C', 'D', 'E', 'F' };	
-	
-	private static final char BYTE_SEPARATOR = ' ';	
-	
-	public static String toHex(byte[] ba) {
-		return toHex(ba, true);
-	}
-	
-	public static String toHex(byte[] ba, boolean withSeparator) {
-		return toHex(ba, 0, ba.length, withSeparator);
-	}	
-	
-	public static String toHex(byte[] ba, int offset, int length, boolean withSeparator) {
-		char[] buf;
-		if (withSeparator) {
-			buf = new char[length * 3];
-		} else {
-			buf = new char[length * 2];
-		}
-		char[] chars;
-		for (int i = offset, j = 0; i < offset + length;) {
-			chars = toHexChars(ba[i++]);
-			buf[j++] = chars[0];
-			buf[j++] = chars[1];
-			if (withSeparator) {
-				buf[j++] = BYTE_SEPARATOR;
-			}
-		}
-		return new String(buf);
-	}	
-	
-	private static char[] toHexChars(int b) {
-		char left = HEX_DIGITS[(b >>> 4) & 0x0F];
-		char right = HEX_DIGITS[b & 0x0F];
-		return new char[] { left, right };
-	}
-	
-	public static String toHex(byte b) {
-		char[] chars = toHexChars(b);
-		return chars[0] + "" + chars[1];
-	}
-	
-	public static byte[] fromHex(char[] hex) {
-		int length = hex.length / 2;
-		byte[] raw = new byte[length];
-		for (int i = 0; i < length; i++) {
-			int high = Character.digit(hex[i * 2], 16);
-			int low = Character.digit(hex[i * 2 + 1], 16);
-			int value = (high << 4) | low;
-			if (value > 127) {
-				value -= 256;
-			}
-			raw[i] = (byte) value;
-		}
-		return raw;
-	}
-	
-	public static byte[] fromHex(String s) {
-		String temp = s.replace(" ", "");		
-		return fromHex(temp.toCharArray());
-	}
-	
-	public static CharSequence readAsString(String fileName) {
-		return readAsString(new File(fileName));
-	}
+public class Utils {
 
-	public static CharSequence readAsString(File file) {		
-		StringBuilder sb = new StringBuilder();		
-		try {		
-			FileInputStream fis = new FileInputStream(file);
-			BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
-			String s;
-			while((s = reader.readLine()) != null) {
-				sb.append(s);
-			}
-			return sb;
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
-	
-	public static byte[] readAsByteArray(String fileName) {
-		File file = new File(fileName);
-		return readAsByteArray(file, file.length());
-	}
-	
-	public static byte[] readAsByteArray(String fileName, int length) {
-		return readAsByteArray(new File(fileName), length);		
-	}
-	
-	public static byte[] readAsByteArray(File file) {		
-		return readAsByteArray(file, file.length());
-	}	
-	
-	public static byte[] readAsByteArray(File file, long length) {		
-		try {								
-			byte[] bytes = new byte[(int)length];
-	        int offset = 0;
-	        int numRead = 0;
-	        FileInputStream is = new FileInputStream(file);
-	        while (offset < bytes.length && (numRead = is.read(bytes, offset, bytes.length - offset)) >= 0) {
-	            offset += numRead;
-	        }
-	        is.close();
-	        return bytes;
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}	
-	
-	public static void convert(String inFileName, String outFileName) {
-		FlvWriter flvWriter = new FlvWriter(0, outFileName);
-		DecoderOutput decoderOutput = new DecoderOutput() {
-			public void write(Object packet) { }			
-			public void disconnect() { }
-		};
-		RtmpSession session = new RtmpSession();
-		session.setOutputWriter(flvWriter);
-		session.setDecoderOutput(decoderOutput);
-		session.setInvokeResultHandler(new DefaultInvokeResultHandler());
-		byte[] bytes = readAsByteArray(inFileName);						
-		ByteBuffer buf = ByteBuffer.wrap(bytes);	
-		int prevPosition = -1;
-		while(prevPosition < buf.position()) {
-			prevPosition = buf.position();
-			RtmpDecoder.decode(buf, session);			
-		}
-		flvWriter.close();
-	}
-	
-    public static String getOverHttp(String url) {        
-        HttpClient client = new HttpClient();        
+    private Utils() { }
+
+    private static final char[] HEX_DIGITS = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        'A', 'B', 'C', 'D', 'E', 'F'};
+
+    private static final char BYTE_SEPARATOR = ' ';
+
+    public static String toHex(final byte[] ba) {
+        return toHex(ba, false);
+    }
+
+    public static String toHex(final byte[] ba, final boolean withSeparator) {
+        return toHex(ba, 0, ba.length, withSeparator);
+    }
+
+    public static String toHex(final byte[] ba, final int offset, final int length, final boolean withSeparator) {
+        final char[] buf;
+        if (withSeparator) {
+            buf = new char[length * 3];
+        } else {
+            buf = new char[length * 2];
+        }        
+        for (int i = offset, j = 0; i < offset + length;) {
+            final char[] chars = toHexChars(ba[i++]);
+            buf[j++] = chars[0];
+            buf[j++] = chars[1];
+            if (withSeparator) {
+                buf[j++] = BYTE_SEPARATOR;
+            }
+        }
+        return new String(buf);
+    }
+
+    private static char[] toHexChars(final int b) {
+        final char left = HEX_DIGITS[(b >>> 4) & 0x0F];
+        final char right = HEX_DIGITS[b & 0x0F];
+        return new char[]{left, right};
+    }
+
+    public static String toHex(final byte b) {
+        final char[] chars = toHexChars(b);
+        return String.valueOf(chars);
+    }
+
+    public static byte[] fromHex(final char[] hex) {
+        final int length = hex.length / 2;
+        final byte[] raw = new byte[length];
+        for (int i = 0; i < length; i++) {
+            final int high = Character.digit(hex[i * 2], 16);
+            final int low = Character.digit(hex[i * 2 + 1], 16);
+            int value = (high << 4) | low;
+            if (value > 127) {
+                value -= 256;
+            }
+            raw[i] = (byte) value;
+        }
+        return raw;
+    }
+
+    public static byte[] fromHex(final String s) {        
+        return fromHex(s.replace(" ", "").toCharArray());
+    }
+
+    public static int readInt32Reverse(final ChannelBuffer in) {
+        final byte a = in.readByte();
+        final byte b = in.readByte();
+        final byte c = in.readByte();
+        final byte d = in.readByte();
+        int val = 0;
+        val += d << 24;
+        val += c << 16;
+        val += b << 8;
+        val += a;
+        return val;
+    }
+
+    public static void writeInt32Reverse(final ChannelBuffer out, final int value) {
+        out.writeByte((byte) (0xFF & value));
+        out.writeByte((byte) (0xFF & (value >> 8)));
+        out.writeByte((byte) (0xFF & (value >> 16)));
+        out.writeByte((byte) (0xFF & (value >> 24)));
+    }
+
+    public static CharSequence readAsString(String fileName) {
+        return readAsString(new File(fileName));
+    }
+
+    public static CharSequence readAsString(File file) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            FileInputStream fis = new FileInputStream(file);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+            String s;
+            while ((s = reader.readLine()) != null) {
+                sb.append(s);
+            }
+            return sb;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static byte[] readAsByteArray(String fileName) {
+        File file = new File(fileName);
+        return readAsByteArray(file, file.length());
+    }
+
+    public static byte[] readAsByteArray(String fileName, int length) {
+        return readAsByteArray(new File(fileName), length);
+    }
+
+    public static byte[] readAsByteArray(File file) {
+        return readAsByteArray(file, file.length());
+    }
+
+    public static byte[] readAsByteArray(File file, long length) {
+        try {
+            byte[] bytes = new byte[(int) length];
+            int offset = 0;
+            int numRead = 0;
+            FileInputStream is = new FileInputStream(file);
+            while (offset < bytes.length && (numRead = is.read(bytes, offset, bytes.length - offset)) >= 0) {
+                offset += numRead;
+            }
+            is.close();
+            return bytes;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String getOverHttp(String url) {
+        HttpClient client = new HttpClient();
         String response = null;
         HttpMethod get = new GetMethod(url);
         try {
@@ -210,27 +183,42 @@ public class Utils {
             get.releaseConnection();
         }
         return response;
-    }	
-    
-	public static byte[] sha256(byte[] message, byte[] key) {
-        Mac mac;
+    }
+
+    public static byte[] sha256(final byte[] message, final byte[] key) {
+        final Mac mac;
         try {
-			mac = Mac.getInstance("HmacSHA256");
-			mac.init(new SecretKeySpec(key, "HmacSHA256"));
-        } catch(Exception e) {
-        	throw new RuntimeException(e);
+            mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key, "HmacSHA256"));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-		return mac.doFinal(message);
-	}   
-	
-	public static Packet hexToPacket(String hex) {
-		byte[] bytes = fromHex(hex);
-		ByteBuffer buf = ByteBuffer.wrap(bytes);
-		RtmpSession session = new RtmpSession();
-		session.setChunkSize(buf.limit());
-		Packet packet = new Packet();		
-		packet.decode(buf, session);		
-		return packet;
-	}
+        return mac.doFinal(message);
+    }
+
+    public static void sendStopSignal(int port) {
+        try {
+            Socket s = new Socket(InetAddress.getByName("127.0.0.1"), port);
+            OutputStream out = s.getOutputStream();
+            System.err.println("sending server stop request");
+            out.write(("\r\n").getBytes());
+            out.flush();
+            s.close();
+        } catch(Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static final String COPYRIGHT_MESSAGE =
+    "\nFlazr <http://flazr.com> Copyright (C) 2009  Peter Thomas.\n"
+    + "This program comes with ABSOLUTELY NO WARRANTY.\n"
+    + "Flazr is free software, and you are welcome to redistribute it\n"
+    + "under certain conditions.  You should have received a copy of the\n"
+    + "GNU Lesser General Public License along with Flazr.\n"
+    + "If not, see <http://www.gnu.org/licenses/>\n";
+
+    public static void outputCopyrightNotice() {
+        System.err.println(COPYRIGHT_MESSAGE);
+    }
 
 }
