@@ -44,6 +44,7 @@ public class RtmpConfig {
 
     public static void configureServer() {
         configure(Type.SERVER);
+        addShutdownHook(SERVER_STOP_PORT);
     }
 
     public static int configureServerStop() {
@@ -53,6 +54,7 @@ public class RtmpConfig {
 
     public static void configureProxy() {
         configure(Type.PROXY);
+        addShutdownHook(PROXY_STOP_PORT);
     }
 
     public static int configureProxyStop() {
@@ -104,6 +106,25 @@ public class RtmpConfig {
                     break;
             }
         }        
+    }
+
+    private static class ServerShutdownHook extends Thread {
+
+        private final int port;
+
+        public ServerShutdownHook(int port) {
+            this.port = port;
+        }
+
+        @Override
+        public void run() {
+            Utils.sendStopSignal(port);
+        }
+
+    }
+
+    private static void addShutdownHook(final int port) {
+        Runtime.getRuntime().addShutdownHook(new ServerShutdownHook(port));
     }
 
     private static Properties loadProps(final File file) {

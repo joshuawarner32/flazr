@@ -60,7 +60,7 @@
         </copy>      
     </target> 
         
-    <!-- ========================= MISC ============================ -->
+    <!-- ========================= DIST ============================ -->
     
     <target name="dist" depends="compile">    
         <input message="Release Version:" addproperty="flazr.version"/>
@@ -85,8 +85,11 @@
         </copy>
         -->
         <copy todir="target/flazr">
-            <fileset dir="." includes="*.txt"/>         
-        </copy>        
+            <fileset dir="." includes="COPYING*,*.txt"/>            
+        </copy>
+        <copy todir="target/flazr/license">
+            <fileset dir="license"/>
+        </copy>
         <path id="lib.jars">
             <path location="target/flazr/conf"/>
             <fileset dir="target/flazr/lib"/>
@@ -112,6 +115,13 @@
         <zip destfile="target/flazr-${flazr.version}.zip">
             <zipfileset dir="target/flazr" excludes="home/apps/vod/*" prefix="flazr-${flazr.version}"/>
         </zip>      
-    </target>    
+    </target>
+
+    <target name="dist-site-scp">
+        <input message="Please enter password:" addproperty="password"/>
+        <scp file="target/flazr.zip"
+            todir="ptrthomas,flazr@shell.sourceforge.net:/home/groups/f/fl/flazr/htdocs/files"
+            password="${password}" trust="true"/>
+    </target>
               
 </project>

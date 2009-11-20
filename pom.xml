@@ -24,6 +24,13 @@
         <connection>scm:svn:https://flazr.svn.sourceforge.net/svnroot/flazr/trunk/flazr</connection>
         <url>http://flazr.svn.sourceforge.net/viewvc/flazr/trunk/flazr</url>
     </scm>
+
+    <distributionManagement>
+        <site>
+            <id>flazr-sourceforge</id>
+            <url>scp://shell.sourceforge.net/home/groups/f/fl/flazr/htdocs</url>
+        </site>
+    </distributionManagement>
     
     <developers>
         <developer>
