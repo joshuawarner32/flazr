@@ -205,7 +205,8 @@ public class Utils {
             out.flush();
             s.close();
         } catch(Exception e) {
-            throw new RuntimeException(e);
+            // can happen when called twice by jvm shutdown hook
+            System.err.println("stop monitor thread has terminated");
         }
     }
 

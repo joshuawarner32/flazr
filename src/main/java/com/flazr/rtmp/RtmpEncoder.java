@@ -96,8 +96,7 @@ public class RtmpEncoder extends SimpleChannelDownstreamHandler {
     private Iterator<ChannelBuffer> iterator(final RtmpHeader header, final ChannelBuffer in) {
 
         return new Iterator<ChannelBuffer>() {
-            
-            private byte[] headerMarker;
+                        
             private boolean first = true;
 
             @Override
@@ -115,10 +114,7 @@ public class RtmpEncoder extends SimpleChannelDownstreamHandler {
                     first = false;
                 } else {
                     out = ChannelBuffers.buffer(size + 1);
-                    if(headerMarker == null) {
-                        headerMarker = header.getTinyHeader(); // cache for performance
-                    }
-                    out.writeBytes(headerMarker);
+                    out.writeBytes(header.getTinyHeader());
                 }
                 in.readBytes(out, size);
                 return out;

@@ -21,10 +21,10 @@ package com.flazr.rtmp.message;
 
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.rtmp.RtmpMessage;
-import com.flazr.util.ByteToEnum;
+import com.flazr.util.ValueToEnum;
 import org.jboss.netty.buffer.ChannelBuffer;
 
-public enum MessageType implements ByteToEnum.Convert {
+public enum MessageType implements ValueToEnum.Convert {
 
     CHUNK_SIZE(0x01),
     ABORT(0x02),
@@ -44,14 +44,14 @@ public enum MessageType implements ByteToEnum.Convert {
     COMMAND_AMF0(0x14),
     AGGREGATE(0x16);
 
-    private final byte value;
+    private final int value;
 
     private MessageType(int value) {
-        this.value = (byte) value;
+        this.value = value;
     }
 
     @Override
-    public byte byteValue() {
+    public int intValue() {
         return value;
     }
     
@@ -93,14 +93,10 @@ public enum MessageType implements ByteToEnum.Convert {
         }
     }
 
-    private static final ByteToEnum<MessageType> converter = new ByteToEnum<MessageType>(MessageType.values());
+    private static final ValueToEnum<MessageType> converter = new ValueToEnum<MessageType>(MessageType.values());
 
-    public static MessageType parseByte(byte b) {
-        return converter.parseByte(b);
-    }
-
-    public int getMaxIndex() {
-        return converter.getMaxIndex();
+    public static MessageType valueToEnum(int value) {
+        return converter.valueToEnum(value);
     }
 
 }

@@ -20,7 +20,7 @@
 package com.flazr.rtmp;
 
 import com.flazr.rtmp.message.*;
-import com.flazr.util.ByteToEnum;
+import com.flazr.util.ValueToEnum;
 import com.flazr.util.Utils;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.slf4j.Logger;
@@ -30,25 +30,25 @@ public class RtmpHeader {
     
     private static final Logger logger = LoggerFactory.getLogger(RtmpHeader.class);
 
-    public static enum Type implements ByteToEnum.Convert {
+    public static enum Type implements ValueToEnum.Convert {
 
-        LARGE(0x00), MEDIUM(0x01), SMALL(0x02), TINY(0x03);
+        LARGE(0), MEDIUM(1), SMALL(2), TINY(3);
 
-        private final byte value;        
+        private final int value;
 
         private Type(int value) {
-            this.value = (byte) value;            
+            this.value = value;            
         }
 
         @Override
-        public byte byteValue() {
+        public int intValue() {
             return value;
         }
 
-        private static final ByteToEnum<Type> converter = new ByteToEnum<Type>(Type.values());
+        private static final ValueToEnum<Type> converter = new ValueToEnum<Type>(Type.values());
 
-        public static Type parseByte(byte b) {
-            return converter.parseByte(b);
+        public static Type valueToEnum(final int value) {
+            return converter.valueToEnum(value);
         }
 
     }
@@ -67,23 +67,23 @@ public class RtmpHeader {
 
     public RtmpHeader(ChannelBuffer in, RtmpHeader[] incompleteHeaders) {
         //=================== TYPE AND CHANNEL (1 - 3 bytes) ===================
-        final byte firstByte = in.readByte();
+        final int firstByteInt = in.readByte();
         final int typeAndChannel;
-        final byte headerTypeByte;
-        if ((firstByte & 0x3f) == 0) {
-            typeAndChannel = ((int) firstByte & 0xff) << 8 | ((int) in.readByte() & 0xff);
+        final int headerTypeInt;
+        if ((firstByteInt & 0x3f) == 0) {
+            typeAndChannel = (firstByteInt & 0xff) << 8 | (in.readByte() & 0xff);
             channelId = 64 + (typeAndChannel & 0xff);
-            headerTypeByte = (byte) (typeAndChannel >> 14);
-        } else if ((firstByte & 0x3f) == 1) {
-            typeAndChannel = ((int) firstByte & 0xff) << 16 | ((int) in.readByte() & 0xff) << 8 | ((int) in.readByte() & 0xff);
+            headerTypeInt = typeAndChannel >> 14;
+        } else if ((firstByteInt & 0x3f) == 1) {
+            typeAndChannel = (firstByteInt & 0xff) << 16 | (in.readByte() & 0xff) << 8 | (in.readByte() & 0xff);
             channelId = 64 + ((typeAndChannel >> 8) & 0xff) + ((typeAndChannel & 0xff) << 8);
-            headerTypeByte = (byte) (typeAndChannel >> 22);
+            headerTypeInt = typeAndChannel >> 22;
         } else {
-            typeAndChannel = (int) firstByte & 0xff;
+            typeAndChannel = firstByteInt & 0xff;
             channelId = (typeAndChannel & 0x3f);
-            headerTypeByte = (byte) (typeAndChannel >> 6);
+            headerTypeInt = typeAndChannel >> 6;
         }
-        headerType = Type.parseByte(headerTypeByte);
+        headerType = Type.valueToEnum(headerTypeInt);
         //========================= REMAINING HEADER ===========================
         final RtmpHeader prevHeader = incompleteHeaders[channelId];
         // logger.debug("so far: {}, prev {}", this, prevHeader);
@@ -91,7 +91,7 @@ public class RtmpHeader {
             case LARGE:
                 time = in.readMedium();
                 size = in.readMedium();
-                messageType = MessageType.parseByte(in.readByte());
+                messageType = MessageType.valueToEnum(in.readByte());
                 streamId = Utils.readInt32Reverse(in);
                 if(time == MAX_NORMAL_HEADER_TIME) {
                     time = in.readInt();
@@ -100,7 +100,7 @@ public class RtmpHeader {
             case MEDIUM:
                 deltaTime = in.readMedium();
                 size = in.readMedium();
-                messageType = MessageType.parseByte(in.readByte());
+                messageType = MessageType.valueToEnum(in.readByte());
                 streamId = prevHeader.streamId;
                 if(deltaTime == MAX_NORMAL_HEADER_TIME) {
                     deltaTime = in.readInt();
@@ -247,7 +247,7 @@ public class RtmpHeader {
         }
         if(headerType != Type.SMALL) {
             out.writeMedium(size);                      // LARGE / MEDIUM
-            out.writeByte(messageType.byteValue());     // LARGE / MEDIUM
+            out.writeByte((byte) messageType.intValue());     // LARGE / MEDIUM
             if(headerType == Type.LARGE) {
                 Utils.writeInt32Reverse(out, streamId); // LARGE
             }
@@ -258,16 +258,16 @@ public class RtmpHeader {
     }
 
     public byte[] getTinyHeader() {
-        return encodeHeaderTypeAndChannel(Type.TINY.byteValue(), channelId);
+        return encodeHeaderTypeAndChannel(Type.TINY.intValue(), channelId);
     }
 
-    private static byte[] encodeHeaderTypeAndChannel(final byte headerTypeByte, final int channelId) {        
+    private static byte[] encodeHeaderTypeAndChannel(final int headerType, final int channelId) {
         if (channelId <= 63) {
-            return new byte[] {(byte) ((headerTypeByte << 6) + channelId)};
+            return new byte[] {(byte) ((headerType << 6) + channelId)};
         } else if (channelId <= 320) {
-            return new byte[] {(byte) (headerTypeByte << 6), (byte) (channelId - 64)};
+            return new byte[] {(byte) (headerType << 6), (byte) (channelId - 64)};
         } else {            
-            return new byte[] {(byte) ((headerTypeByte << 6) | 1),
+            return new byte[] {(byte) ((headerType << 6) | 1),
                 (byte) ((channelId - 64) & 0xff), (byte) ((channelId - 64) >> 8)};
         }
     }

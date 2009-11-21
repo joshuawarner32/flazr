@@ -78,7 +78,7 @@ public class FlvAtom implements RtmpMessage {
 
     public ChannelBuffer write() {        
         ChannelBuffer out = ChannelBuffers.buffer(15 + header.getSize());
-        out.writeByte(header.getMessageType().byteValue());
+        out.writeByte((byte) header.getMessageType().intValue());
         out.writeMedium(header.getSize());
         out.writeMedium(header.getTime());
         out.writeInt(0); // 4 bytes of zeros (reserved)
@@ -88,7 +88,7 @@ public class FlvAtom implements RtmpMessage {
     }
 
     public static RtmpHeader readHeader(ChannelBuffer in) {
-        final MessageType messageType = MessageType.parseByte(in.readByte());
+        final MessageType messageType = MessageType.valueToEnum(in.readByte());
         final int size = in.readMedium();
         final int time = in.readMedium();
         in.skipBytes(4); // 0 - reserved

@@ -20,7 +20,7 @@
 package com.flazr.rtmp.message;
 
 import com.flazr.rtmp.RtmpHeader;
-import com.flazr.util.ByteToEnum;
+import com.flazr.util.ValueToEnum;
 import com.flazr.util.Utils;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -31,7 +31,7 @@ public class Control extends AbstractMessage {
 
     private static final Logger logger = LoggerFactory.getLogger(Control.class);
 
-    public static enum Type implements ByteToEnum.Convert {
+    public static enum Type implements ValueToEnum.Convert {
         
         STREAM_BEGIN(0),
         STREAM_EOF(1),
@@ -45,21 +45,21 @@ public class Control extends AbstractMessage {
         UNKNOWN1(31),
         UNKNOWN2(32);
 
-        private final short shortValue;
+        private final int value;
 
-        private Type(final int shortValue) {
-            this.shortValue = (short) shortValue;
+        private Type(int value) {
+            this.value = value;
         }
 
         @Override
-        public byte byteValue() {
-            return (byte) shortValue;
+        public int intValue() {
+            return value;
         }
 
-        private static final ByteToEnum<Type> converter = new ByteToEnum<Type>(Type.values());
+        private static final ValueToEnum<Type> converter = new ValueToEnum<Type>(Type.values());
 
-        public static Type parseShort(short value) {
-            return converter.parseByte((byte) value);
+        public static Type valueToEnum(final int value) {
+            return converter.valueToEnum(value);
         }
 
     }
@@ -149,7 +149,7 @@ public class Control extends AbstractMessage {
             default: size = 6;
         }
         ChannelBuffer out = ChannelBuffers.buffer(size);
-        out.writeShort(type.shortValue);
+        out.writeShort((short) type.value);
         switch(type) {
             case STREAM_BEGIN:
             case STREAM_EOF:
@@ -180,7 +180,7 @@ public class Control extends AbstractMessage {
 
     @Override
     public void decode(ChannelBuffer in) {
-        type = Type.parseShort(in.readShort());
+        type = Type.valueToEnum(in.readShort());
         switch(type) {
             case STREAM_BEGIN:
             case STREAM_EOF:

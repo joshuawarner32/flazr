@@ -26,43 +26,47 @@ import java.util.Arrays;
  * could extend some other class - we implement an interface instead
  * and have to construct a static instance in each enum type we use
  */
-public class ByteToEnum<T extends Enum<T> & ByteToEnum.Convert> {
+public class ValueToEnum<T extends Enum<T> & ValueToEnum.Convert> {
 
     public static interface Convert {
-        byte byteValue();
+        int intValue();
     }
 
     private final Enum[] lookupArray;
     private final int maxIndex;
 
-    public ByteToEnum(T[] enumValues) {
+    public ValueToEnum(T[] enumValues) {
         final int[] lookupIndexes = new int[enumValues.length];
         for(int i = 0; i < enumValues.length; i++) {
-            lookupIndexes[i] = enumValues[i].byteValue();
+            lookupIndexes[i] = enumValues[i].intValue();
         }
         Arrays.sort(lookupIndexes);
         maxIndex = lookupIndexes[lookupIndexes.length - 1];        
         lookupArray = new Enum[maxIndex + 1]; // use 1 based index
         for (final T t : enumValues) {
-            lookupArray[t.byteValue()] = t;
+            lookupArray[t.intValue()] = t;
         }        
     }
 
-    public T parseByte(final byte b) {
+    public T valueToEnum(final int i) {
         final T t;
         try {
-            t = (T) lookupArray[b];
+            t = (T) lookupArray[i];
         } catch(Exception e) { // index out of bounds
-            throw new RuntimeException("bad byte: " + Utils.toHex(b) + " " + e);
+            throw new RuntimeException(getErrorLogMessage(i) + ", " + e);
         }
         if (t == null) {
-            throw new RuntimeException("bad byte: " + Utils.toHex(b));
+            throw new RuntimeException(getErrorLogMessage(i) + ", no match found in lookup");
         }
         return t;
     }
 
     public int getMaxIndex() {
         return maxIndex;
+    }
+
+    private String getErrorLogMessage(int i) {
+        return "bad value / byte: " + i + " (hex: " + Utils.toHex((byte) i) + ")";
     }
 
 }
