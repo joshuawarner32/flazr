@@ -60,12 +60,12 @@ public class CommandAmf0 extends Command {
 
     @Override
     public void decode(ChannelBuffer in) {                
-        name = (String) Amf0Value.decodeValue(in);
-        transactionId = ((Double) Amf0Value.decodeValue(in)).intValue();
-        object = (Amf0Object) Amf0Value.decodeValue(in);
+        name = (String) Amf0Value.decode(in);
+        transactionId = ((Double) Amf0Value.decode(in)).intValue();
+        object = (Amf0Object) Amf0Value.decode(in);
         List<Object> list = new ArrayList<Object>();
         while(in.readable()) {
-            list.add(Amf0Value.decodeValue(in));
+            list.add(Amf0Value.decode(in));
         }
         args = list.toArray();
     }

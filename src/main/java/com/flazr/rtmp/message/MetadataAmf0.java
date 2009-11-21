@@ -51,10 +51,10 @@ public class MetadataAmf0 extends Metadata {
 
     @Override
     public void decode(ChannelBuffer in) {
-        name = (String) Amf0Value.decodeValue(in);
+        name = (String) Amf0Value.decode(in);
         List<Object> list = new ArrayList<Object>();
         while(in.readable()) {
-            list.add(Amf0Value.decodeValue(in));
+            list.add(Amf0Value.decode(in));
         }
         data = list.toArray();
     }

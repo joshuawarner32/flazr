@@ -35,6 +35,8 @@ public class Amf0Value {
 
     private static final Logger logger = LoggerFactory.getLogger(Amf0Value.class);
 
+    private Amf0Value() {}
+
     public static enum Type implements ValueToEnum.IntValue {
 
         NUMBER(0x00),
@@ -68,37 +70,69 @@ public class Amf0Value {
 
     }
 
-    private static final byte[] OBJECT_END_MARKER = new byte[]{0x00, 0x00, 0x09};
-    
-    private final Type type;
-    private final Object value;
+    private static final byte[] OBJECT_END_MARKER = new byte[]{0x00, 0x00, 0x09};    
 
-    public Object getValue() {
-        return value;
-    }
-
-    public Amf0Value(final Object o) {        
-        if (o == null) {
+    public static void encode(final ChannelBuffer out, final Object value) {
+        final Type type;
+        if (value == null) {
             type = NULL;
-        } else if (o instanceof Number) {
+        } else if (value instanceof Number) {
             type = NUMBER;
-        } else if (o instanceof Boolean) {
+        } else if (value instanceof Boolean) {
             type = BOOLEAN;
-        } else if (o instanceof String) {
+        } else if (value instanceof String) {
             type = STRING;
-        } else if (o instanceof Amf0Object) {
+        } else if (value instanceof Amf0Object) {
             type = OBJECT;
-        } else if (o instanceof Map) {
+        } else if (value instanceof Map) {
             type = MAP;
-        } else if (o instanceof Object[]) {
+        } else if (value instanceof Object[]) {
             type = ARRAY;
         } else {
-            throw new RuntimeException("unexpected type: " + o.getClass());
+            throw new RuntimeException("unexpected type: " + value.getClass());
         }
-        if(type == NUMBER && !(o instanceof Double)) {
-            value = Double.parseDouble(o.toString()); // converts int also
-        } else {
-            value = o;
+        if(logger.isDebugEnabled()) {
+            logger.debug(">> " + toString(type, value));
+        }
+        out.writeByte((byte) type.value);
+        switch (type) {
+            case NUMBER:
+                if(value instanceof Double) {
+                    out.writeLong(Double.doubleToLongBits((Double) value));
+                } else { // this coverts int also
+                    out.writeLong(Double.doubleToLongBits(Double.valueOf(value.toString())));
+                }
+                return;
+            case BOOLEAN:
+                final int bool = (Boolean) value ? 0x01 : 0x00;
+                out.writeByte((byte) bool);
+                return;
+            case STRING:
+                encodeString(out, (String) value);
+                return;
+            case NULL:
+                return;
+            case MAP:
+                out.writeInt(0);
+                // no break; remaining processing same as OBJECT
+            case OBJECT:
+                final Map<String, Object> map = (Map) value;
+                for(final Map.Entry<String, Object> entry : map.entrySet()) {
+                    encodeString(out, entry.getKey());
+                    encode(out, entry.getValue());
+                }
+                out.writeBytes(OBJECT_END_MARKER);
+                return;
+            case ARRAY:
+                final Object[] array = (Object[]) value;
+                out.writeInt(array.length);
+                for(Object o : array) {
+                    encode(out, o);
+                }
+                return;
+            default:
+                // ignoring other types client doesn't require for now
+                throw new RuntimeException("unexpected type: " + type);
         }
     }
 
@@ -116,24 +150,21 @@ public class Amf0Value {
     }
 
     public static void encode(final ChannelBuffer out, final Object... values) {
-        for (final Object o : values) {
-            new Amf0Value(o).encode(out);
+        for (final Object value : values) {
+            encode(out, value);
         }
     }
 
-    public static Object decodeValue(final ChannelBuffer in) {
-        return new Amf0Value(in).value;
-    }
-
-    private Amf0Value(final ChannelBuffer in) {
-        type = Type.valueToEnum(in.readByte());
-        value = decode(in, type);
+    public static Object decode(final ChannelBuffer in) {
+        final Type type = Type.valueToEnum(in.readByte());
+        final Object value = decode(in, type);
         if(logger.isDebugEnabled()) {
-            logger.debug("<< " + toString());
+            logger.debug("<< " + toString(type, value));
         }
+        return value;
     }
 
-    private Object decode(final ChannelBuffer in, final Type type) {
+    private static Object decode(final ChannelBuffer in, final Type type) {
         switch (type) {
             case NUMBER: return Double.longBitsToDouble(in.readLong());
             case BOOLEAN: return (in.readByte() == 0x01) ? true : false;
@@ -142,7 +173,7 @@ public class Amf0Value {
                 final int arraySize = in.readInt();
                 final Object[] array = new Object[arraySize];
                 for (int i = 0; i < arraySize; i++) {
-                    array[i] = decodeValue(in);
+                    array[i] = decode(in);
                 }
                 return array;
             case MAP:
@@ -162,7 +193,7 @@ public class Amf0Value {
                         in.skipBytes(3);
                         break;
                     }
-                    map.put(decodeString(in), decodeValue(in));
+                    map.put(decodeString(in), decode(in));
                 }
                 return map;
             case DATE:
@@ -182,51 +213,8 @@ public class Amf0Value {
                 throw new RuntimeException("unexpected type: " + type);
         }
     }
-
-    public void encode(final ChannelBuffer out) {
-        if(logger.isDebugEnabled()) {
-            logger.debug(">> " + toString());
-        }
-        out.writeByte((byte) type.value);
-        switch (type) {
-            case NUMBER:
-                out.writeLong(Double.doubleToLongBits((Double) value));
-                return;
-            case BOOLEAN:
-                final int bool = (Boolean) value ? 0x01 : 0x00;
-                out.writeByte((byte) bool);
-                return;
-            case STRING:
-                encodeString(out, (String) value);
-                return;
-            case NULL:
-                return;
-            case MAP:                
-                out.writeInt(0);
-                // no break; remaining processing same as OBJECT
-            case OBJECT:                
-                final Map<String, Object> map = (Map) value;
-                for(final Map.Entry<String, Object> entry : map.entrySet()) {
-                    encodeString(out, entry.getKey());
-                    encode(out, entry.getValue());
-                }
-                out.writeBytes(OBJECT_END_MARKER);
-                return;
-            case ARRAY:                
-                final Object[] array = (Object[]) value;
-                out.writeInt(array.length);
-                for(Object o : array) {
-                    encode(out, o);
-                }
-                return;
-            default:
-                // ignoring other types client doesn't require for now
-                throw new RuntimeException("unexpected type: " + type);
-        }
-    }
-
-    @Override
-    public String toString() {
+    
+    private static String toString(final Type type, final Object value) {
         StringBuilder sb = new StringBuilder();
         sb.append('[').append(type).append(" ");
         if(type == ARRAY) {
