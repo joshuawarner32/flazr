@@ -55,7 +55,14 @@ public enum BoxType {
     /*               */ STCO,
     /*               */ CO64, //TODO
     /*               */ STSS,
-    MDAT;           //======
+    MDAT,           //======
+    UNKNOWN;
+
+    private String typeString;
+
+    public void setTypeString(String typeString) {
+        this.typeString = typeString;
+    }
 
     public BoxType[] getChildren() {
         switch(this) {            
@@ -89,8 +96,23 @@ public enum BoxType {
         return types;
     }
 
-    public static BoxType parse(String type) {
-        return BoxType.valueOf(type.toUpperCase());
+    public static BoxType parse(String typeString) {
+        BoxType type;
+        try {
+            type = BoxType.valueOf(typeString.toUpperCase());
+        } catch(Exception e) {
+            type = UNKNOWN;
+        }
+        type.setTypeString(typeString);
+        return type;
+    }
+
+    @Override
+    public String toString() {
+        if(this != UNKNOWN) {
+            return super.toString();
+        }
+        return "(" + typeString + ")";
     }
     
 }
