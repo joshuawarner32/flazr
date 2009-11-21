@@ -20,6 +20,7 @@
 package com.flazr.rtmp.client;
 
 import com.flazr.rtmp.RtmpHandshake;
+import com.flazr.rtmp.RtmpMessageReader;
 import com.flazr.util.Utils;
 import java.io.File;
 import java.util.LinkedHashMap;
@@ -33,10 +34,33 @@ public class RtmpClientSession {
 
     private static final Logger logger = LoggerFactory.getLogger(RtmpClientSession.class);
 
+    public static enum Type {
+        
+        PLAY,
+        PUBLISH_LIVE,
+        PUBLISH_APPEND, 
+        PUBLISH_RECORD;
+
+        public boolean isPublish() {
+            return this != PLAY;
+        }
+
+        public String getPublishType() {
+            switch(this) {
+                case PUBLISH_LIVE: return "live";
+                case PUBLISH_APPEND: return "append";
+                case PUBLISH_RECORD: return "record";
+                default: return null;
+            }
+        }
+    }
+
+    private Type type = Type.PLAY;
     private String host;
     private int port;
-    private String app;    
-    private String playName;    
+    private String appName;
+    private String playName; // TODO cleanup
+    private RtmpMessageReader reader;
     private String saveAs;    
     private boolean rtmpe;
     private Map<String, Object> params;
@@ -82,7 +106,7 @@ public class RtmpClientSession {
             boolean rtmpe, String swfFile) {
         this.host = host;
         this.port = port;
-        this.app = app;
+        this.appName = app;
         this.playName = playName;
         this.saveAs = saveAs;
         this.rtmpe = rtmpe;        
@@ -121,8 +145,8 @@ public class RtmpClientSession {
             logger.debug("port = '{}'", portString);
         }
         port = portString == null ? 1935 : Integer.parseInt(portString);
-        app = matcher.group(4);
-        logger.debug("app = '{}'",  app);
+        appName = matcher.group(4);
+        logger.debug("app = '{}'",  appName);
         playName = matcher.group(5);
         logger.debug("playName = '{}'", playName);        
         rtmpe = protocol.equalsIgnoreCase("rtmpe");
@@ -131,12 +155,20 @@ public class RtmpClientSession {
         }        
     }
 
-    public String getApp() {
-        return app;
+    public String getAppName() {
+        return appName;
+    }
+
+    public RtmpMessageReader getReader() {
+        return reader;
+    }
+
+    public void setReader(RtmpMessageReader reader) {
+        this.reader = reader;
     }
 
     public String getTcUrl() {
-        return (rtmpe ? "rtmpe://" : "rtmp://") + host + ":" + port + "/" + app;
+        return (rtmpe ? "rtmpe://" : "rtmp://") + host + ":" + port + "/" + appName;
     }
 
     public void setArgs(Object ... args) {
@@ -173,6 +205,14 @@ public class RtmpClientSession {
 
     public Map<String, Object> getParams() {
         return params;
+    }
+
+    public Type getType() {
+        return type;
+    }
+
+    public void setType(Type type) {
+        this.type = type;
     }
 
     public String getPlayName() {

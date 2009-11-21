@@ -90,10 +90,11 @@ public class RtmpEncoder extends SimpleChannelDownstreamHandler {
         if(logger.isDebugEnabled()) {
             logger.debug(">> {}", message);
         }        
-        return iterator(header, in);
+        return iterator(header, in, chunkSize);
     }
 
-    private Iterator<ChannelBuffer> iterator(final RtmpHeader header, final ChannelBuffer in) {
+    private static Iterator<ChannelBuffer> iterator(
+            final RtmpHeader header, final ChannelBuffer in, final int chunkSizeToUse) {
 
         return new Iterator<ChannelBuffer>() {
                         
@@ -106,7 +107,7 @@ public class RtmpEncoder extends SimpleChannelDownstreamHandler {
 
             @Override
             public ChannelBuffer next() {
-                final int size = Math.min(chunkSize, in.readableBytes());
+                final int size = Math.min(chunkSizeToUse, in.readableBytes());
                 final ChannelBuffer out;
                 if(first) {
                     out = ChannelBuffers.buffer(size + RtmpHeader.MAX_ENCODED_SIZE);

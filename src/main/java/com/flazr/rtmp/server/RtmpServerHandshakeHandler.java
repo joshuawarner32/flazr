@@ -20,6 +20,7 @@
 package com.flazr.rtmp.server;
 
 import com.flazr.rtmp.RtmpHandshake;
+import com.flazr.rtmp.RtmpPublisherEvent;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelDownstreamHandler;
@@ -80,7 +81,7 @@ public class RtmpServerHandshakeHandler extends FrameDecoder implements ChannelD
             return;
         }
         final MessageEvent me = (MessageEvent) ce;
-        if(me.getMessage() instanceof RtmpServerHandler.RtmpServerEvent) {
+        if(me.getMessage() instanceof RtmpPublisherEvent) {
             super.handleUpstream(ctx, ce);
             return;
         }

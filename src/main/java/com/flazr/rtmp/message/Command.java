@@ -67,7 +67,7 @@ public abstract class Command extends AbstractMessage {
 
     public static Command connect(RtmpClientSession session) {
         Amf0Object object = object(
-            pair("app", session.getApp()),
+            pair("app", session.getAppName()),
             pair("flashVer", "WIN 9,0,124,2"),
             pair("tcUrl", session.getTcUrl()),
             pair("fpad", false),
@@ -178,6 +178,17 @@ public abstract class Command extends AbstractMessage {
         Command command = new CommandAmf0("onStatus", null, status);
         command.header.setChannelId(5);
         return command;
+    }
+    
+    public static Command publish(int streamId, RtmpClientSession session) { // TODO
+        Command command = new CommandAmf0("publish", null, session.getPlayName(), session.getType().getPublishType());
+        command.header.setChannelId(8);
+        command.header.setStreamId(streamId);
+        return command;
+    }
+
+    public static Command closeStream() {
+        return new CommandAmf0("closeStream", null);
     }
 
     //==========================================================================

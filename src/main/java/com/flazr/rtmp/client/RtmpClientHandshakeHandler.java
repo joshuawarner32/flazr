@@ -77,6 +77,11 @@ public class RtmpClientHandshakeHandler extends FrameDecoder implements ChannelD
             super.handleUpstream(ctx, ce);
             return;
         }
+        final MessageEvent me = (MessageEvent) ce;
+        if(me.getMessage() instanceof RtmpPublisherEvent) {
+            super.handleUpstream(ctx, ce);
+            return;
+        }
         final ChannelBuffer in = (ChannelBuffer) ((MessageEvent) ce).getMessage();
         handshake.cipherUpdateIn(in);
         Channels.fireMessageReceived(ctx, in);

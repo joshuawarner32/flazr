@@ -70,6 +70,9 @@ public class FlvWriter {
                 throw new RuntimeException(e);
             }
         }
+        if(primaryChannel == -1) {
+            return;
+        }
         logger.info("final media duration: {} seconds (seek time: {})",
                 (channelTimes[primaryChannel] - seekTime) / 1000, seekTime / 1000);
     }

@@ -19,6 +19,7 @@
 
 package com.flazr.rtmp.client;
 
+import com.flazr.io.flv.FlvReader;
 import com.flazr.util.Utils;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
@@ -30,7 +31,9 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 public class RtmpClient {
 
     public static void main(String[] args) {        
-        RtmpClientSession session = new RtmpClientSession("rtmp://localhost/vod/IronMan");
+        RtmpClientSession session = new RtmpClientSession("localhost", "live", "cameraFeed", null);
+        session.setReader(new FlvReader("home/apps/vod/IronMan.flv"));
+        session.setType(RtmpClientSession.Type.PUBLISH_LIVE);
         connect(session);
     }
 

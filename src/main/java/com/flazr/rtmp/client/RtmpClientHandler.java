@@ -24,12 +24,16 @@ import static com.flazr.rtmp.message.Control.Type.*;
 
 import com.flazr.rtmp.message.Control;
 import com.flazr.rtmp.RtmpMessage;
+import com.flazr.rtmp.RtmpPublisher;
 import com.flazr.rtmp.message.BytesRead;
+import com.flazr.rtmp.message.ChunkSize;
 import com.flazr.rtmp.message.WindowAckSize;
 import com.flazr.rtmp.message.Command;
 import com.flazr.rtmp.message.Metadata;
 import com.flazr.rtmp.message.SetPeerBw;
 import com.flazr.util.Utils;
+import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 import java.util.HashMap;
 import java.util.Map;
 import org.jboss.netty.channel.Channel;
@@ -39,6 +43,8 @@ import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.jboss.netty.util.HashedWheelTimer;
+import org.jboss.netty.util.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,11 +57,17 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
     private Map<Integer, String> transactionToCommandMap;
     private RtmpClientSession session;
     private byte[] swfvBytes;
+
     private FlvWriter writer;
+
     private int bytesReadWindow = 2500000;
     private long bytesRead;
     private long bytesReadLastSent;    
     private int bytesWrittenWindow = 2500000;
+
+    private Timer timer;
+    private RtmpPublisher publisher;
+    private int streamId;
 
     public void setSwfvBytes(byte[] swfvBytes) {
         this.swfvBytes = swfvBytes;        
@@ -64,8 +76,7 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
 
     public RtmpClientHandler(RtmpClientSession session) {
         this.session = session;
-        transactionToCommandMap = new HashMap<Integer, String>();
-        writer = new FlvWriter(session.getPlayStart(), session.getSaveAs());
+        transactionToCommandMap = new HashMap<Integer, String>();        
     }
 
     private void writeCommandExpectingResult(Channel channel, Command command) {
@@ -81,12 +92,27 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
         logger.info("handshake complete, sending 'connect'");
         writeCommandExpectingResult(e.getChannel(), Command.connect(session));
     }
+
+    @Override
+    public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+        if(timer != null) {
+            timer.stop();
+        }
+        if(writer != null) {
+            writer.close();
+        }
+        if(publisher != null) {
+            publisher.getReader().close();
+        }
+    }
     
     @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
-        final Object o = e.getMessage();    
-        final Channel channel = e.getChannel();
-        final RtmpMessage message = (RtmpMessage) o;
+    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) {
+        if(publisher != null && publisher.handle(me)) {
+            return;
+        }
+        final Channel channel = me.getChannel();
+        final RtmpMessage message = (RtmpMessage) me.getMessage();
         switch(message.getHeader().getMessageType()) {
             case CONTROL:
                 Control control = (Control) message;
@@ -107,6 +133,19 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
                             Control swfv = Control.swfvResponse(swfvBytes);
                             logger.info("sending swf verification response: {}", swfv);
                             channel.write(swfv);
+                        }
+                        break;
+                    case STREAM_BEGIN:
+                        if(publisher != null) {
+                            logger.info("publish mode, stream begin, will start {}", control);
+                            final int seekTime;
+                            if(session.getPlayStart() > 0) {
+                                seekTime = (int) publisher.getReader().seek(session.getPlayStart());
+                            } else {
+                                seekTime = 0;
+                            }
+                            publisher.start(channel, seekTime, new ChunkSize(4096));
+                            return;
                         }
                         break;
                     default:
@@ -145,9 +184,23 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
                     if(resultFor.equals("connect")) {
                         writeCommandExpectingResult(channel, Command.createStream());
                     } else if(resultFor.equals("createStream")) {
-                        final int streamId = ((Double) command.getArg(0)).intValue();
-                        logger.info("streamId to play: {}", streamId);
-                        channel.write(Command.play(streamId, session));
+                        streamId = ((Double) command.getArg(0)).intValue();
+                        logger.info("streamId to use: {}", streamId);
+                        if(session.getType().isPublish()) {
+                            timer = new HashedWheelTimer();                            
+                            publisher = new RtmpPublisher(session.getReader(), timer, streamId, session.getPlayDuration()) {
+                                @Override protected RtmpMessage[] getStopMessages(long timePosition) {
+                                    channel.close();
+                                    return new RtmpMessage[] { Command.closeStream() };
+                                }
+                            };
+                            publisher.setTargetBufferDuration(200); // TODO cleanup
+                            channel.write(Command.publish(streamId, session));
+                            return;
+                        } else {
+                            writer = new FlvWriter(session.getPlayStart(), session.getSaveAs());
+                            channel.write(Command.play(streamId, session));
+                        }
                     } else {
                         logger.warn("un-handled server result for: {}", resultFor);
                     }
@@ -156,8 +209,7 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
                     String code = (String) temp.get("code");
                     logger.info("onStatus code: {}", code);
                     if (code.equals("NetStream.Failed") || code.equals("NetStream.Play.Failed") || code.equals("NetStream.Play.Stop")) {
-                        logger.info("disconnecting, bytes read: {}", bytesRead);
-                        writer.close();
+                        logger.info("disconnecting, bytes read: {}", bytesRead);                        
                         channel.close();
                     }
                 } else {
@@ -182,13 +234,23 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
             default:
             logger.info("ignoring rtmp message: {}", message);
         }
+        if(publisher != null) {
+            publisher.write(channel);
+        }
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
-        logger.error("exception: {}", e.getCause().getMessage());
-        writer.close();
-        e.getChannel().close();        
+        if (e.getCause() instanceof ClosedChannelException) {
+            logger.info("exception: {}", e);
+        } else if(e.getCause() instanceof IOException) {
+            logger.info("exception: {}", e.getCause().getMessage());
+        } else {
+            logger.warn("exception: {}", e.getCause());
+        }
+        if(e.getChannel().isOpen()) {
+            e.getChannel().close();
+        }
     }    
 
 }
