@@ -61,9 +61,12 @@
     </target> 
         
     <!-- ========================= DIST ============================ -->
-    
-    <target name="dist" depends="compile">    
+
+    <target name="dist-input-version">
         <input message="Release Version:" addproperty="flazr.version"/>
+    </target>
+
+    <target name="dist" depends="dist-input-version, compile">
         <copy todir="target/flazr/lib" flatten="true">            
             <fileset refid="runtime.fileset"/>
         </copy>
@@ -117,10 +120,10 @@
         </zip>      
     </target>
 
-    <target name="dist-site-scp">
+    <target name="dist-jar-scp" depends="dist">
         <input message="Please enter password:" addproperty="password"/>
-        <scp file="target/flazr.zip"
-            todir="ptrthomas,flazr@shell.sourceforge.net:/home/groups/f/fl/flazr/htdocs/files"
+        <scp file="target/flazr/lib/flazr-${flazr.version}.jar"
+            todir="ptrthomas@web.sourceforge.net:/home/groups/f/fl/flazr/htdocs/files"
             password="${password}" trust="true"/>
     </target>
               
