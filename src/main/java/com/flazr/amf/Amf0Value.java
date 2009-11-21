@@ -68,29 +68,34 @@ public class Amf0Value {
             return converter.valueToEnum(value);
         }
 
-    }
+        public static Type getType(final Object value) {
+            if (value == null) {
+                return NULL;
+            } else if (value instanceof String) {
+                return STRING;
+            } else if (value instanceof Number) {
+                return NUMBER;
+            } else if (value instanceof Boolean) {
+                return BOOLEAN;
+            } else if (value instanceof Amf0Object) {
+                return OBJECT;
+            } else if (value instanceof Map) {
+                return MAP;
+            } else if (value instanceof Object[]) {
+                return ARRAY;
+            } else {
+                throw new RuntimeException("unexpected type: " + value.getClass());
+            }
+        }
 
+    }
+    
+    private static final byte BOOLEAN_TRUE = 0x01;
+    private static final byte BOOLEAN_FALSE = 0x00;
     private static final byte[] OBJECT_END_MARKER = new byte[]{0x00, 0x00, 0x09};    
 
     public static void encode(final ChannelBuffer out, final Object value) {
-        final Type type;
-        if (value == null) {
-            type = NULL;
-        } else if (value instanceof Number) {
-            type = NUMBER;
-        } else if (value instanceof Boolean) {
-            type = BOOLEAN;
-        } else if (value instanceof String) {
-            type = STRING;
-        } else if (value instanceof Amf0Object) {
-            type = OBJECT;
-        } else if (value instanceof Map) {
-            type = MAP;
-        } else if (value instanceof Object[]) {
-            type = ARRAY;
-        } else {
-            throw new RuntimeException("unexpected type: " + value.getClass());
-        }
+        final Type type = Type.getType(value);
         if(logger.isDebugEnabled()) {
             logger.debug(">> " + toString(type, value));
         }
@@ -103,9 +108,8 @@ public class Amf0Value {
                     out.writeLong(Double.doubleToLongBits(Double.valueOf(value.toString())));
                 }
                 return;
-            case BOOLEAN:
-                final int bool = (Boolean) value ? 0x01 : 0x00;
-                out.writeByte((byte) bool);
+            case BOOLEAN:                
+                out.writeByte((Boolean) value ? BOOLEAN_TRUE : BOOLEAN_FALSE);
                 return;
             case STRING:
                 encodeString(out, (String) value);
@@ -167,7 +171,7 @@ public class Amf0Value {
     private static Object decode(final ChannelBuffer in, final Type type) {
         switch (type) {
             case NUMBER: return Double.longBitsToDouble(in.readLong());
-            case BOOLEAN: return (in.readByte() == 0x01) ? true : false;
+            case BOOLEAN: return in.readByte() == BOOLEAN_TRUE;
             case STRING: return decodeString(in);
             case ARRAY:
                 final int arraySize = in.readInt();
