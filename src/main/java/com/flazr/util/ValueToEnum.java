@@ -26,9 +26,9 @@ import java.util.Arrays;
  * could extend some other class - we implement an interface instead
  * and have to construct a static instance in each enum type we use
  */
-public class ValueToEnum<T extends Enum<T> & ValueToEnum.Convert> {
+public class ValueToEnum<T extends Enum<T> & ValueToEnum.IntValue> {
 
-    public static interface Convert {
+    public static interface IntValue {
         int intValue();
     }
 

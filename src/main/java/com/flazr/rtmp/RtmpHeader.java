@@ -30,7 +30,7 @@ public class RtmpHeader {
     
     private static final Logger logger = LoggerFactory.getLogger(RtmpHeader.class);
 
-    public static enum Type implements ValueToEnum.Convert {
+    public static enum Type implements ValueToEnum.IntValue {
 
         LARGE(0), MEDIUM(1), SMALL(2), TINY(3);
 

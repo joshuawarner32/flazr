@@ -31,7 +31,7 @@ public class Control extends AbstractMessage {
 
     private static final Logger logger = LoggerFactory.getLogger(Control.class);
 
-    public static enum Type implements ValueToEnum.Convert {
+    public static enum Type implements ValueToEnum.IntValue {
         
         STREAM_BEGIN(0),
         STREAM_EOF(1),

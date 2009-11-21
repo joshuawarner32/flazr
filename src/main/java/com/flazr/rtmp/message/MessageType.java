@@ -24,7 +24,7 @@ import com.flazr.rtmp.RtmpMessage;
 import com.flazr.util.ValueToEnum;
 import org.jboss.netty.buffer.ChannelBuffer;
 
-public enum MessageType implements ValueToEnum.Convert {
+public enum MessageType implements ValueToEnum.IntValue {
 
     CHUNK_SIZE(0x01),
     ABORT(0x02),

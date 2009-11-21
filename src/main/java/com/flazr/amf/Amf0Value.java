@@ -35,7 +35,7 @@ public class Amf0Value {
 
     private static final Logger logger = LoggerFactory.getLogger(Amf0Value.class);
 
-    public static enum Type implements ValueToEnum.Convert {
+    public static enum Type implements ValueToEnum.IntValue {
 
         NUMBER(0x00),
         BOOLEAN(0x01),
@@ -183,7 +183,7 @@ public class Amf0Value {
         }
     }
 
-    public void encode(ChannelBuffer out) {
+    public void encode(final ChannelBuffer out) {
         if(logger.isDebugEnabled()) {
             logger.debug(">> " + toString());
         }
@@ -206,7 +206,7 @@ public class Amf0Value {
                 // no break; remaining processing same as OBJECT
             case OBJECT:                
                 final Map<String, Object> map = (Map) value;
-                for(Map.Entry<String, Object> entry : map.entrySet()) {
+                for(final Map.Entry<String, Object> entry : map.entrySet()) {
                     encodeString(out, entry.getKey());
                     encode(out, entry.getValue());
                 }
