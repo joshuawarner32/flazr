@@ -32,8 +32,8 @@ public class RtmpClient {
 
     public static void main(String[] args) {        
         RtmpClientSession session = new RtmpClientSession("localhost", "live", "cameraFeed", null);
-        session.setReader(new FlvReader("home/apps/vod/IronMan.flv"));
-        session.setType(RtmpClientSession.Type.PUBLISH_LIVE);
+        session.setReader(new FlvReader("home/apps/vod/sample.flv"));
+        session.setType(RtmpClientSession.Type.PUBLISH_LIVE);        
         connect(session);
     }
 

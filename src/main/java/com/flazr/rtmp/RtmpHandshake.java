@@ -19,6 +19,7 @@
 
 package com.flazr.rtmp;
 
+import com.flazr.rtmp.client.RtmpClientSession;
 import com.flazr.util.Utils;
 import java.math.BigInteger;
 import java.security.KeyFactory;
@@ -177,10 +178,13 @@ public class RtmpHandshake {
 
     public RtmpHandshake() {}
 
-    public RtmpHandshake(boolean rtmpe, byte[] swfHash, int swfSize) {
-        this.rtmpe = rtmpe;
-        this.swfHash = swfHash;
-        this.swfSize = swfSize;
+    public RtmpHandshake(RtmpClientSession session) {
+        this.rtmpe = session.isRtmpe();
+        this.swfHash = session.getSwfHash();
+        this.swfSize = session.getSwfSize();
+        if(session.getClientVersionToUse() != null) {
+            this.clientVersionToUse = session.getClientVersionToUse();
+        }
     }
 
     public byte[] getSwfvBytes() {
@@ -359,9 +363,10 @@ public class RtmpHandshake {
         peerPartOneDigest = new byte[DIGEST_SIZE];
         in.getBytes(digestOffset, peerPartOneDigest);        
         if (!Arrays.equals(peerPartOneDigest, expected)) {
-            throw new RuntimeException("server part 1 validation failed");
+            logger.warn("server part 1 validation failed, will continue anyway");
+        } else {
+            logger.info("server part 1 validation success");
         }
-        logger.info("server part 1 validation success");
         peerPublicKey = new byte[PUBLIC_KEY_SIZE];
         int publicKeyOffset = publicKeyOffset(in);
         in.getBytes(publicKeyOffset, peerPublicKey);
@@ -455,8 +460,8 @@ public class RtmpHandshake {
             return out;
         }
         logger.debug("creating server part 1 for validation type: {}", validationType);
-        int dhOffset = publicKeyOffset(out);
-        out.setBytes(dhOffset, ownPublicKey);
+        int publicKeyOffset = publicKeyOffset(out);
+        out.setBytes(publicKeyOffset, ownPublicKey);
         int digestOffset = digestOffset(out);
         ownPartOneDigest = digestHandshake(out, digestOffset, SERVER_CONST);
         out.setBytes(digestOffset, ownPartOneDigest);

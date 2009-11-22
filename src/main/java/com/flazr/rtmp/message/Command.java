@@ -187,8 +187,18 @@ public abstract class Command extends AbstractMessage {
         return command;
     }
 
-    public static Command closeStream() {
-        return new CommandAmf0("closeStream", null);
+    public static Command unPublish(int streamId) { // TODO
+        Command command = new CommandAmf0("publish", null, false);
+        command.header.setChannelId(8);
+        command.header.setStreamId(streamId);
+        return command;
+    }
+
+    public static Command closeStream(int streamId) {
+        Command command = new CommandAmf0("closeStream", null);
+        command.header.setChannelId(8);
+        command.header.setStreamId(streamId);
+        return command;
     }
 
     //==========================================================================

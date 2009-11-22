@@ -41,7 +41,7 @@ public class RtmpClientHandshakeHandler extends FrameDecoder implements ChannelD
     private boolean handshakeDone;
 
     public RtmpClientHandshakeHandler(RtmpClientSession session) {
-        handshake = new RtmpHandshake(session.isRtmpe(), session.getSwfHash(), session.getSwfSize());
+        handshake = new RtmpHandshake(session);
     }
 
     @Override

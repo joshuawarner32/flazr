@@ -65,6 +65,7 @@ public class RtmpClientSession {
     private boolean rtmpe;
     private Map<String, Object> params;
     private Object[] args;
+    private byte[] clientVersionToUse;
     private int playStart;
     private int playDuration = -2;    
     private byte[] swfHash;
@@ -177,6 +178,14 @@ public class RtmpClientSession {
 
     public Object[] getArgs() {
         return args;
+    }
+
+    public void setClientVersionToUse(byte[] clientVersionToUse) {
+        this.clientVersionToUse = clientVersionToUse;
+    }
+
+    public byte[] getClientVersionToUse() {
+        return clientVersionToUse;
     }
 
     public void initSwfVerification(String pathToLocalSwfFile) {

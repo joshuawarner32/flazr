@@ -72,12 +72,11 @@ public abstract class RtmpPublisher {
         }
     }
 
-    public RtmpPublisher(RtmpMessageReader reader, Timer timer, int streamId, int playLength) {
+    public RtmpPublisher(RtmpMessageReader reader, Timer timer, int streamId) {
         this.reader = reader;
         this.timer = timer;
-        this.streamId = streamId;
-        this.playLength = playLength;
-        logger.info("publisher init, streamId: {}, play length: {}", streamId, playLength);
+        this.streamId = streamId;        
+        logger.info("publisher init, streamId: {}", streamId);
     }
 
     public void setTargetBufferDuration(int targetBufferDuration) {
@@ -100,7 +99,7 @@ public abstract class RtmpPublisher {
         if(me.getMessage() instanceof RtmpPublisherEvent) {
             final RtmpPublisherEvent rse = (RtmpPublisherEvent) me.getMessage();
             if(rse.getConversationId() != currentConversationId) {
-                logger.info("stopping obsolete conversation id: {}, current: {}",
+                logger.debug("stopping obsolete conversation id: {}, current: {}",
                         rse.getConversationId(), currentConversationId);
                 return true;
             }
@@ -110,15 +109,23 @@ public abstract class RtmpPublisher {
         return false;
     }
 
-    public void start(final Channel channel, final int seekTime, final RtmpMessage ... messages) {
+    public void start(final Channel channel, final int seekTime, final int playLength, final RtmpMessage ... messages) {
+        this.playLength = playLength;
+        start(channel, seekTime, messages);
+    }
+
+    public void start(final Channel channel, final int seekTimeRequested, final RtmpMessage ... messages) {
         paused = false;
         currentConversationId++;
         startTime = System.currentTimeMillis();
-        this.seekTime = seekTime;
+        if(seekTimeRequested >= 0) {
+            seekTime = reader.seek(seekTimeRequested);
+        } else {
+            seekTime = 0;
+        }
         timePosition = seekTime;
-        logger.info("play start, seek: {}, length: {}, conversation: {}",
-                new Object[]{seekTime, playLength, currentConversationId});        
-        reader.setAggregateDuration(0);
+        logger.info("play start, seek requested: {} actual seek: {}, play length: {}, conversation: {}",
+                new Object[]{seekTimeRequested, seekTime, playLength, currentConversationId});
         for(final RtmpMessage message : messages) {
             writeToStream(channel, message);
         }
@@ -187,14 +194,14 @@ public abstract class RtmpPublisher {
         currentConversationId++;
     }
 
-    public void stop(final Channel channel) {
+    private void stop(final Channel channel) {
         currentConversationId++;
         final long elapsedTime = System.currentTimeMillis() - startTime;
-        for(final RtmpMessage message : getStopMessages(timePosition)) {
-            writeToStream(channel, message);
-        }
         logger.info("finished, start: {}, elapsed {}, streamed: {}",
                 new Object[]{seekTime / 1000, elapsedTime / 1000, (timePosition - seekTime) / 1000});
+        for(RtmpMessage message : getStopMessages(timePosition)) {
+            writeToStream(channel, message);
+        }
     }
 
     protected abstract RtmpMessage[] getStopMessages(long timePosition);

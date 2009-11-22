@@ -37,6 +37,8 @@ import java.nio.channels.ClosedChannelException;
 import java.util.HashMap;
 import java.util.Map;
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipelineCoverage;
 import org.jboss.netty.channel.ChannelStateEvent;
@@ -138,13 +140,8 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
                     case STREAM_BEGIN:
                         if(publisher != null) {
                             logger.info("publish mode, stream begin, will start {}", control);
-                            final int seekTime;
-                            if(session.getPlayStart() > 0) {
-                                seekTime = (int) publisher.getReader().seek(session.getPlayStart());
-                            } else {
-                                seekTime = 0;
-                            }
-                            publisher.start(channel, seekTime, new ChunkSize(4096));
+                            publisher.start(channel, session.getPlayStart(),
+                                    session.getPlayDuration(), new ChunkSize(4096));
                             return;
                         }
                         break;
@@ -188,12 +185,11 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
                         logger.info("streamId to use: {}", streamId);
                         if(session.getType().isPublish()) {
                             timer = new HashedWheelTimer();                            
-                            publisher = new RtmpPublisher(session.getReader(), timer, streamId, session.getPlayDuration()) {
+                            publisher = new RtmpPublisher(session.getReader(), timer, streamId) {
                                 @Override protected RtmpMessage[] getStopMessages(long timePosition) {
-                                    channel.close();
-                                    return new RtmpMessage[] { Command.closeStream() };
+                                    return new RtmpMessage[]{Command.unPublish(streamId)};
                                 }
-                            };
+                            };                            
                             publisher.setTargetBufferDuration(200); // TODO cleanup
                             channel.write(Command.publish(streamId, session));
                             return;
@@ -211,6 +207,12 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
                     if (code.equals("NetStream.Failed") || code.equals("NetStream.Play.Failed") || code.equals("NetStream.Play.Stop")) {
                         logger.info("disconnecting, bytes read: {}", bytesRead);                        
                         channel.close();
+                    }
+                    if (code.equals("NetStream.Unpublish.Success")) {
+                        logger.info("unpublish success, closing channel");
+                        ChannelFuture future = channel.write(Command.closeStream(streamId));
+                        future.addListener(ChannelFutureListener.CLOSE);
+                        return;
                     }
                 } else {
                     logger.warn("ignoring server command: {}", command);
