@@ -210,7 +210,7 @@ public class F4vReader implements RtmpMessageReader {
     }    
 
     public static void main(String[] args) {
-        F4vReader reader = new F4vReader("home/apps/vod/sample1_150kbps.f4v");
+        F4vReader reader = new F4vReader("home/apps/vod/bacchikoi.avi");
         while(reader.hasNext()) {
             logger.debug("read: {}", reader.next());
         }

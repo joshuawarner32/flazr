@@ -51,13 +51,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ChannelPipelineCoverage("one")
-public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
+public class ClientHandler extends SimpleChannelUpstreamHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(RtmpClientHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(ClientHandler.class);
 
     private int transactionId = 1;
     private Map<Integer, String> transactionToCommandMap;
-    private RtmpClientSession session;
+    private ClientSession session;
     private byte[] swfvBytes;
 
     private FlvWriter writer;
@@ -76,7 +76,7 @@ public class RtmpClientHandler extends SimpleChannelUpstreamHandler {
         logger.info("set swf verification bytes: {}", Utils.toHex(swfvBytes));        
     }
 
-    public RtmpClientHandler(RtmpClientSession session) {
+    public ClientHandler(ClientSession session) {
         this.session = session;
         transactionToCommandMap = new HashMap<Integer, String>();        
     }

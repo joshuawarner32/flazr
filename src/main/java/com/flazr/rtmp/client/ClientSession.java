@@ -30,9 +30,9 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RtmpClientSession {
+public class ClientSession {
 
-    private static final Logger logger = LoggerFactory.getLogger(RtmpClientSession.class);
+    private static final Logger logger = LoggerFactory.getLogger(ClientSession.class);
 
     public static enum Type {
         
@@ -71,39 +71,39 @@ public class RtmpClientSession {
     private byte[] swfHash;
     private int swfSize;
 
-    private RtmpClientSession() {}
+    private ClientSession() {}
 
     public static void main(String[] args) {
-        final RtmpClientSession session;
+        final ClientSession session;
         switch(args.length) {
             case 0:
                 logger.error("at least 1 argument required"); return;
             case 1:
-                session = new RtmpClientSession(args[0]); break;
+                session = new ClientSession(args[0]); break;
             case 2:
-                session = new RtmpClientSession(args[0], args[1]); break;
+                session = new ClientSession(args[0], args[1]); break;
             case 3:
-                session = new RtmpClientSession(args[0], args[1], args[2], null); break;
+                session = new ClientSession(args[0], args[1], args[2], null); break;
             case 4:
-                session = new RtmpClientSession(args[0], args[1], args[2], args[3]); break;
+                session = new ClientSession(args[0], args[1], args[2], args[3]); break;
             case 5:
-                session = new RtmpClientSession(args[0], Integer.parseInt(args[1]), args[2], args[3],
+                session = new ClientSession(args[0], Integer.parseInt(args[1]), args[2], args[3],
                         args[4], false, null); break;
             case 6:
-                session = new RtmpClientSession(args[0], Integer.parseInt(args[1]), args[2], args[3],
+                session = new ClientSession(args[0], Integer.parseInt(args[1]), args[2], args[3],
                         args[4], Boolean.parseBoolean(args[5]), null); break;
             default:
-                session = new RtmpClientSession(args[0], Integer.parseInt(args[1]), args[2], args[3],
+                session = new ClientSession(args[0], Integer.parseInt(args[1]), args[2], args[3],
                         args[4], Boolean.parseBoolean(args[5]), args[6]); break;
         }
         RtmpClient.connect(session);
     }
 
-    public RtmpClientSession(String host, String app, String playName, String saveAs) {
+    public ClientSession(String host, String app, String playName, String saveAs) {
         this(host, 1935, app, playName, saveAs, false, null);
     }
 
-    public RtmpClientSession(String host, int port, String app, String playName, String saveAs, 
+    public ClientSession(String host, int port, String app, String playName, String saveAs,
             boolean rtmpe, String swfFile) {
         this.host = host;
         this.port = port;
@@ -123,12 +123,12 @@ public class RtmpClientSession {
         + "(.*)" // 5) play
     );
 
-    public RtmpClientSession(String url, String saveAs) {
+    public ClientSession(String url, String saveAs) {
         this(url);
         this.saveAs = saveAs;
     }
 
-    public RtmpClientSession(String url) {                      
+    public ClientSession(String url) {
         Matcher matcher = URL_PATTERN.matcher(url);
         if (!matcher.matches()) {
             throw new RuntimeException("invalid url: " + url);

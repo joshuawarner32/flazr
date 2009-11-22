@@ -24,21 +24,21 @@ import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
 
-public class RtmpClientPipelineFactory implements ChannelPipelineFactory {
+public class ClientPipelineFactory implements ChannelPipelineFactory {
 
-    private RtmpClientSession session;
+    private ClientSession session;
 
-    public RtmpClientPipelineFactory(RtmpClientSession session) {
+    public ClientPipelineFactory(ClientSession session) {
         this.session = session;
     }
 
     @Override
     public ChannelPipeline getPipeline() {
         ChannelPipeline pipeline = Channels.pipeline();        
-        pipeline.addLast("handshaker", new RtmpClientHandshakeHandler(session));               
+        pipeline.addLast("handshaker", new ClientHandshakeHandler(session));
         pipeline.addLast("decoder", new RtmpDecoder());
         pipeline.addLast("encoder", new RtmpEncoder());
-        pipeline.addLast("handler", new RtmpClientHandler(session));
+        pipeline.addLast("handler", new ClientHandler(session));
         return pipeline;
     }
 

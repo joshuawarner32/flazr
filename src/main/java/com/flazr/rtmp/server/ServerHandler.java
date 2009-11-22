@@ -46,9 +46,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ChannelPipelineCoverage("one")
-public class RtmpServerHandler extends SimpleChannelHandler {
+public class ServerHandler extends SimpleChannelHandler {
     
-    private static final Logger logger = LoggerFactory.getLogger(RtmpServerHandler.class);           
+    private static final Logger logger = LoggerFactory.getLogger(ServerHandler.class);
         
     private int bytesReadWindow = 2500000;
     private long bytesRead;

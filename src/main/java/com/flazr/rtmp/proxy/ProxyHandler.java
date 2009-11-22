@@ -37,9 +37,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ChannelPipelineCoverage("one")
-public class RtmpProxyHandler extends SimpleChannelUpstreamHandler {
+public class ProxyHandler extends SimpleChannelUpstreamHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(RtmpProxyHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(ProxyHandler.class);
 
     private final ClientSocketChannelFactory cf;
     private final String remoteHost;
@@ -47,7 +47,7 @@ public class RtmpProxyHandler extends SimpleChannelUpstreamHandler {
 
     private volatile Channel outboundChannel;
 
-    public RtmpProxyHandler(ClientSocketChannelFactory cf, String remoteHost, int remotePort) {
+    public ProxyHandler(ClientSocketChannelFactory cf, String remoteHost, int remotePort) {
         this.cf = cf;
         this.remoteHost = remoteHost;
         this.remotePort = remotePort;
@@ -59,7 +59,7 @@ public class RtmpProxyHandler extends SimpleChannelUpstreamHandler {
         RtmpProxy.ALL_CHANNELS.add(inboundChannel);
         inboundChannel.setReadable(false);        
         ClientBootstrap cb = new ClientBootstrap(cf);
-        cb.getPipeline().addLast("handshaker", new RtmpProxyHandshakeHandler());
+        cb.getPipeline().addLast("handshaker", new ProxyHandshakeHandler());
         cb.getPipeline().addLast("handler", new OutboundHandler(e.getChannel()));
         ChannelFuture f = cb.connect(new InetSocketAddress(remoteHost, remotePort));
         outboundChannel = f.getChannel();

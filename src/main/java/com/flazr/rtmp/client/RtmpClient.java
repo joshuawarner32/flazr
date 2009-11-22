@@ -31,19 +31,19 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 public class RtmpClient {
 
     public static void main(String[] args) {        
-        RtmpClientSession session = new RtmpClientSession("localhost", "live", "cameraFeed", null);
+        ClientSession session = new ClientSession("localhost", "live", "cameraFeed", null);
         session.setReader(new FlvReader("home/apps/vod/sample.flv"));
-        session.setType(RtmpClientSession.Type.PUBLISH_LIVE);        
+        session.setType(ClientSession.Type.PUBLISH_LIVE);
         connect(session);
     }
 
-    public static void connect(RtmpClientSession session) {
+    public static void connect(ClientSession session) {
         Utils.outputCopyrightNotice();
         ChannelFactory factory = new NioClientSocketChannelFactory (
             Executors.newCachedThreadPool(),
             Executors.newCachedThreadPool());
         ClientBootstrap bootstrap = new ClientBootstrap(factory);
-        bootstrap.setPipelineFactory(new RtmpClientPipelineFactory(session));
+        bootstrap.setPipelineFactory(new ClientPipelineFactory(session));
         bootstrap.setOption("tcpNoDelay" , true);
         bootstrap.setOption("keepAlive", true);
         ChannelFuture future = bootstrap.connect(new InetSocketAddress(session.getHost(), session.getPort()));

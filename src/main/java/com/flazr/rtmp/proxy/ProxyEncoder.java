@@ -19,40 +19,28 @@
 
 package com.flazr.rtmp.proxy;
 
-import com.flazr.rtmp.RtmpDecoder;
+import com.flazr.rtmp.RtmpEncoder;
+import com.flazr.rtmp.RtmpMessage;
+import java.util.Iterator;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipelineCoverage;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @ChannelPipelineCoverage("one")
-public class RtmpProxyHandshakeHandler extends SimpleChannelUpstreamHandler {
+public class ProxyEncoder extends SimpleChannelUpstreamHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(RtmpProxyHandshakeHandler.class);
-    
-    private int bytesWritten;
-    private boolean handshakeDone;
+    private final RtmpEncoder encoder = new RtmpEncoder();
 
     @Override
     public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent e) throws Exception {
-        final ChannelBuffer in = (ChannelBuffer) e.getMessage();
-        bytesWritten += in.readableBytes();
-        if(!handshakeDone && bytesWritten >= 3073) {
-            final int remaining = bytesWritten - 3073;
-            if(remaining > 0) {
-                Channels.fireMessageReceived(ctx, in.readBytes(remaining));
-            }
-            handshakeDone = true;
-            logger.debug("bytes written {}, handshake complete, switching pipeline", bytesWritten);
-            ctx.getPipeline().addFirst("encoder", new RtmpProxyEncoder());
-            ctx.getPipeline().addFirst("decoder", new RtmpDecoder());
-            ctx.getPipeline().remove(this);
-        }        
-        super.messageReceived(ctx, e);
+        final RtmpMessage message = (RtmpMessage) e.getMessage();
+        final Iterator<ChannelBuffer> chunks = encoder.encode(message);
+        while(chunks.hasNext()) {
+            Channels.fireMessageReceived(ctx, chunks.next());
+        }
     }
-    
+
 }

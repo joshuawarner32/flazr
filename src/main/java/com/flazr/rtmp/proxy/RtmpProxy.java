@@ -49,7 +49,7 @@ public class RtmpProxy {
         ChannelFactory factory = new NioServerSocketChannelFactory(executor, executor);
         ServerBootstrap sb = new ServerBootstrap(factory);
         ClientSocketChannelFactory cf = new NioClientSocketChannelFactory(executor, executor);
-        sb.setPipelineFactory(new RtmpProxyPipelineFactory(cf,
+        sb.setPipelineFactory(new ProxyPipelineFactory(cf,
                 RtmpConfig.PROXY_REMOTE_HOST, RtmpConfig.PROXY_REMOTE_PORT));
         InetSocketAddress socketAddress = new InetSocketAddress(RtmpConfig.PROXY_PORT);
         sb.bind(socketAddress);

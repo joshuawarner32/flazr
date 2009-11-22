@@ -22,7 +22,7 @@ package com.flazr.rtmp.proxy;
 import com.flazr.rtmp.RtmpConfig;
 import com.flazr.util.Utils;
 
-public class RtmpProxyStop {
+public class ProxyStop {
 
     public static void main(String[] args) {
         Utils.sendStopSignal(RtmpConfig.configureProxyStop());

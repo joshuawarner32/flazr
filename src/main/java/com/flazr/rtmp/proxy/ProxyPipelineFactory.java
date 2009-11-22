@@ -17,27 +17,30 @@
  * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr.rtmp.server;
+package com.flazr.rtmp.proxy;
 
-import com.flazr.rtmp.RtmpDecoder;
-import com.flazr.rtmp.RtmpEncoder;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.handler.execution.ExecutionHandler;
-import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
+import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 
-public class RtmpServerPipelineFactory implements ChannelPipelineFactory {
+public class ProxyPipelineFactory implements ChannelPipelineFactory {
+
+    private final ClientSocketChannelFactory cf;
+    private final String remoteHost;
+    private final int remotePort;
+
+    public ProxyPipelineFactory(ClientSocketChannelFactory cf, String remoteHost, int remotePort) {
+        this.cf = cf;
+        this.remoteHost = remoteHost;
+        this.remotePort = remotePort;
+    }
 
     @Override
     public ChannelPipeline getPipeline() {
-        ChannelPipeline pipeline = Channels.pipeline();        
-        pipeline.addLast("handshaker", new RtmpServerHandshakeHandler());        
-        pipeline.addLast("decoder", new RtmpDecoder());
-        pipeline.addLast("encoder", new RtmpEncoder());
-        pipeline.addLast("executor", new ExecutionHandler(
-                new OrderedMemoryAwareThreadPoolExecutor(16, 1048576, 1048576)));
-        pipeline.addLast("handler", new RtmpServerHandler());
+        ChannelPipeline pipeline = Channels.pipeline();
+        pipeline.addLast("handshaker", new ProxyHandshakeHandler());
+        pipeline.addLast("handler", new ProxyHandler(cf, remoteHost, remotePort));
         return pipeline;
     }
 

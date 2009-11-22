@@ -54,7 +54,7 @@ public class RtmpServer {
 
         ServerBootstrap bootstrap = new ServerBootstrap(factory);
 
-        bootstrap.setPipelineFactory(new RtmpServerPipelineFactory());
+        bootstrap.setPipelineFactory(new ServerPipelineFactory());
         bootstrap.setOption("child.tcpNoDelay", true);
         bootstrap.setOption("child.keepAlive", true);
 

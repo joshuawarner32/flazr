@@ -22,7 +22,7 @@ package com.flazr.rtmp.server;
 import com.flazr.rtmp.RtmpConfig;
 import com.flazr.util.Utils;
 
-public class RtmpServerStop {
+public class ServerStop {
 
     public static void main(String[] args) {
         Utils.sendStopSignal(RtmpConfig.configureServerStop());

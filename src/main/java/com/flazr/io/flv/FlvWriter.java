@@ -71,9 +71,10 @@ public class FlvWriter {
             }
         }
         if(primaryChannel == -1) {
+            logger.warn("no media was written, closed file");
             return;
         }
-        logger.info("final media duration: {} seconds (seek time: {})",
+        logger.info("closed file, final media duration: {} seconds (seek time: {})",
                 (channelTimes[primaryChannel] - seekTime) / 1000, seekTime / 1000);
     }
 

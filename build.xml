@@ -105,16 +105,16 @@
             <map from="${basedir}/target/flazr/conf" to="conf"/>
             <map from="${basedir}/target/flazr/lib" to="lib"/>            
         </pathconvert>
-        <concat destfile="target/flazr/client.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-client com.flazr.rtmp.client.RtmpClientSession $*</concat>
-        <concat destfile="target/flazr/client.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-client com.flazr.rtmp.client.RtmpClientSession %*</concat>
+        <concat destfile="target/flazr/client.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-client com.flazr.rtmp.client.ClientSession $*</concat>
+        <concat destfile="target/flazr/client.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-client com.flazr.rtmp.client.ClientSession %*</concat>
         <concat destfile="target/flazr/server-start.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-server com.flazr.rtmp.server.RtmpServer $*</concat>
         <concat destfile="target/flazr/server-start.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-server com.flazr.rtmp.server.RtmpServer %*</concat>
-        <concat destfile="target/flazr/server-stop.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-stop com.flazr.rtmp.server.RtmpServerStop $*</concat>
-        <concat destfile="target/flazr/server-stop.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-stop com.flazr.rtmp.server.RtmpServerStop %*</concat>
+        <concat destfile="target/flazr/server-stop.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-stop com.flazr.rtmp.server.ServerStop $*</concat>
+        <concat destfile="target/flazr/server-stop.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-stop com.flazr.rtmp.server.ServerStop %*</concat>
         <concat destfile="target/flazr/proxy-start.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-proxy com.flazr.rtmp.proxy.RtmpProxy $*</concat>
         <concat destfile="target/flazr/proxy-start.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-proxy com.flazr.rtmp.proxy.RtmpProxy %*</concat>
-        <concat destfile="target/flazr/proxy-stop.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-stop com.flazr.rtmp.proxy.RtmpProxyStop $*</concat>
-        <concat destfile="target/flazr/proxy-stop.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-stop com.flazr.rtmp.proxy.RtmpProxyStop %*</concat>
+        <concat destfile="target/flazr/proxy-stop.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-stop com.flazr.rtmp.proxy.ProxyStop $*</concat>
+        <concat destfile="target/flazr/proxy-stop.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-stop com.flazr.rtmp.proxy.ProxyStop %*</concat>
         <zip destfile="target/flazr-${flazr.version}.zip">
             <zipfileset dir="target/flazr" excludes="home/apps/vod/*" prefix="flazr-${flazr.version}"/>
         </zip>      

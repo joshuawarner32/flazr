@@ -21,7 +21,7 @@ package com.flazr.rtmp.message;
 
 import com.flazr.amf.Amf0Object;
 import com.flazr.rtmp.RtmpHeader;
-import com.flazr.rtmp.client.RtmpClientSession;
+import com.flazr.rtmp.client.ClientSession;
 import java.util.Arrays;
 import java.util.Map;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -65,7 +65,7 @@ public abstract class Command extends AbstractMessage {
 
     //==========================================================================
 
-    public static Command connect(RtmpClientSession session) {
+    public static Command connect(ClientSession session) {
         Amf0Object object = object(
             pair("app", session.getAppName()),
             pair("flashVer", "WIN 9,0,124,2"),
@@ -108,7 +108,7 @@ public abstract class Command extends AbstractMessage {
         return new CommandAmf0(transactionId, "_result", null, streamId);
     }
 
-    public static Command play(int streamId, RtmpClientSession session) {
+    public static Command play(int streamId, ClientSession session) {
         Command command = new CommandAmf0("play", null,
             session.getPlayName(), session.getPlayStart(), session.getPlayDuration());
         command.header.setChannelId(8);
@@ -180,7 +180,7 @@ public abstract class Command extends AbstractMessage {
         return command;
     }
     
-    public static Command publish(int streamId, RtmpClientSession session) { // TODO
+    public static Command publish(int streamId, ClientSession session) { // TODO
         Command command = new CommandAmf0("publish", null, session.getPlayName(), session.getType().getPublishType());
         command.header.setChannelId(8);
         command.header.setStreamId(streamId);

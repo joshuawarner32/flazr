@@ -17,62 +17,65 @@
  * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package com.flazr.rtmp.client;
+package com.flazr.rtmp.server;
 
-import com.flazr.rtmp.*;
+import com.flazr.rtmp.RtmpHandshake;
+import com.flazr.rtmp.RtmpPublisherEvent;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelDownstreamHandler;
 import org.jboss.netty.channel.ChannelEvent;
+import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.handler.codec.frame.FrameDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RtmpClientHandshakeHandler extends FrameDecoder implements ChannelDownstreamHandler {
+public class ServerHandshakeHandler extends FrameDecoder implements ChannelDownstreamHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(RtmpClientHandshakeHandler.class);   
-
+    private static final Logger logger = LoggerFactory.getLogger(ServerHandshakeHandler.class);
+    
     private boolean rtmpe;
     private RtmpHandshake handshake;
+    private boolean partOneDone;
     private boolean handshakeDone;
 
-    public RtmpClientHandshakeHandler(RtmpClientSession session) {
-        handshake = new RtmpHandshake(session);
+    @Override
+    protected Object decode(ChannelHandlerContext ctx, Channel channel, ChannelBuffer in) {        
+        if(!partOneDone) {
+            handshake = new RtmpHandshake();
+            if(in.readableBytes() < RtmpHandshake.HANDSHAKE_SIZE + 1) {
+                return null;
+            }
+            handshake.decodeClient0And1(in);
+            rtmpe = handshake.isRtmpe();
+            ChannelFuture future = Channels.succeededFuture(channel);
+            Channels.write(ctx, future, handshake.encodeServer0());
+            Channels.write(ctx, future, handshake.encodeServer1());
+            Channels.write(ctx, future, handshake.encodeServer2());
+            partOneDone = true;
+        }
+        if(!handshakeDone) {
+            if(in.readableBytes() < RtmpHandshake.HANDSHAKE_SIZE) {
+                return null;
+            }
+            handshake.decodeClient2(in);
+            handshakeDone = true;
+            logger.info("handshake done, rtmpe: {}", rtmpe);
+            if(!rtmpe) {
+                channel.getPipeline().remove(this);
+            }
+        }
+        if(in.readable()) {
+            Channels.fireMessageReceived(channel, in);
+        }
+        return null;
     }
 
     @Override
-    public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {        
-        logger.info("connected, starting handshake");                
-        Channels.write(ctx, e.getFuture(), handshake.encodeClient0());
-        Channels.write(ctx, e.getFuture(), handshake.encodeClient1());
-    }
-
-    @Override
-    protected Object decode(ChannelHandlerContext ctx, Channel channel, ChannelBuffer in) {               
-        if(in.readableBytes() < 1 + RtmpHandshake.HANDSHAKE_SIZE * 2) {
-            return null;
-        }
-        handshake.decodeServerAll(in);
-        Channels.write(ctx, Channels.succeededFuture(channel), handshake.encodeClient2());
-        handshakeDone = true;
-        rtmpe = handshake.isRtmpe(); // rare chance server refused rtmpe
-        if(handshake.getSwfvBytes() != null) {
-            RtmpClientHandler clientHandler = channel.getPipeline().get(RtmpClientHandler.class);
-            clientHandler.setSwfvBytes(handshake.getSwfvBytes());
-        }
-        if(!rtmpe) {
-            channel.getPipeline().remove(this);
-        }
-        Channels.fireChannelConnected(ctx, channel.getRemoteAddress());
-        return in;
-    }
-
-    @Override
-    public void handleUpstream(final ChannelHandlerContext ctx, final ChannelEvent ce) throws Exception {
+    public void handleUpstream(final ChannelHandlerContext ctx, final ChannelEvent ce) throws Exception {        
         if (!handshakeDone || !rtmpe || !(ce instanceof MessageEvent)) {
             super.handleUpstream(ctx, ce);
             return;
@@ -88,7 +91,7 @@ public class RtmpClientHandshakeHandler extends FrameDecoder implements ChannelD
     }
 
     @Override
-    public void handleDownstream(final ChannelHandlerContext ctx, final ChannelEvent ce) {
+    public void handleDownstream(ChannelHandlerContext ctx, ChannelEvent ce) {        
         if (!handshakeDone || !rtmpe || !(ce instanceof MessageEvent)) {
             ctx.sendDownstream(ce);
             return;
