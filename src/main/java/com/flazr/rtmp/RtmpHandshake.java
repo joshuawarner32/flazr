@@ -139,7 +139,7 @@ public class RtmpHandshake {
     
     private byte[] serverVersionToUse = new byte[]{0x03, 0x05, 0x01, 0x01};
 
-    private int digestOffset(ChannelBuffer in) {
+    private static int digestOffset(ChannelBuffer in, int validationType) {
         switch(validationType) {
             case 1: return calculateOffset(in, 8, 728, 12);
             case 2: return calculateOffset(in, 772, 728, 776);
@@ -147,7 +147,7 @@ public class RtmpHandshake {
         }
     }
 
-    private int publicKeyOffset(ChannelBuffer in) {
+    private static int publicKeyOffset(ChannelBuffer in, int validationType) {
         switch(validationType) {
             case 1: return calculateOffset(in, 1532, 632, 772);
             case 2: return calculateOffset(in, 768, 632, 8);
@@ -308,9 +308,9 @@ public class RtmpHandshake {
         }        
         logger.debug("creating client part 1, validation type: {}", validationType);
         initKeyPair();
-        int publicKeyOffset = publicKeyOffset(out);
+        int publicKeyOffset = publicKeyOffset(out, validationType);
         out.setBytes(publicKeyOffset, ownPublicKey);
-        int digestOffset = digestOffset(out);
+        int digestOffset = digestOffset(out, validationType);
         ownPartOneDigest = digestHandshake(out, digestOffset, CLIENT_CONST);
         out.setBytes(digestOffset, ownPartOneDigest);
         return out;
@@ -358,17 +358,26 @@ public class RtmpHandshake {
             return;
         }      
         logger.debug("processing server part 1, validation type: {}", validationType);
-        int digestOffset = digestOffset(in);
+        int digestOffset = digestOffset(in, validationType);
         byte[] expected = digestHandshake(in, digestOffset, SERVER_CONST);
         peerPartOneDigest = new byte[DIGEST_SIZE];
         in.getBytes(digestOffset, peerPartOneDigest);        
-        if (!Arrays.equals(peerPartOneDigest, expected)) {
-            logger.warn("server part 1 validation failed, will continue anyway");
-        } else {
-            logger.info("server part 1 validation success");
+        if (!Arrays.equals(peerPartOneDigest, expected)) {            
+            int altValidationType = validationType == 1 ? 2 : 1;
+            logger.warn("server part 1 validation failed for type {}, will try with type {}",
+                    validationType, altValidationType);
+            digestOffset = digestOffset(in, altValidationType);
+            expected = digestHandshake(in, digestOffset, SERVER_CONST);
+            peerPartOneDigest = new byte[DIGEST_SIZE];
+            in.getBytes(digestOffset, peerPartOneDigest);
+            if (!Arrays.equals(peerPartOneDigest, expected)) {
+                throw new RuntimeException("server part 1 validation failed even for type: " + altValidationType);
+            }
+            validationType = altValidationType;
         }
+        logger.info("server part 1 validation success");
         peerPublicKey = new byte[PUBLIC_KEY_SIZE];
-        int publicKeyOffset = publicKeyOffset(in);
+        int publicKeyOffset = publicKeyOffset(in, validationType);
         in.getBytes(publicKeyOffset, peerPublicKey);
         initCiphers();
     }
@@ -430,7 +439,7 @@ public class RtmpHandshake {
         }        
         logger.debug("processing client part 1 for validation type: {}", validationType);
         initKeyPair();
-        int digestOffset = digestOffset(in);
+        int digestOffset = digestOffset(in, validationType);
         peerPartOneDigest = new byte[DIGEST_SIZE];
         in.getBytes(digestOffset, peerPartOneDigest);
         byte[] expected = digestHandshake(in, digestOffset, CLIENT_CONST);
@@ -438,7 +447,7 @@ public class RtmpHandshake {
             throw new RuntimeException("client part 1 validation failed");
         }
         logger.info("client part 1 validation success");
-        int publicKeyOffset = publicKeyOffset(in);
+        int publicKeyOffset = publicKeyOffset(in, validationType);
         peerPublicKey = new byte[PUBLIC_KEY_SIZE];
         in.getBytes(publicKeyOffset, peerPublicKey);
         initCiphers();
@@ -460,9 +469,9 @@ public class RtmpHandshake {
             return out;
         }
         logger.debug("creating server part 1 for validation type: {}", validationType);
-        int publicKeyOffset = publicKeyOffset(out);
+        int publicKeyOffset = publicKeyOffset(out, validationType);
         out.setBytes(publicKeyOffset, ownPublicKey);
-        int digestOffset = digestOffset(out);
+        int digestOffset = digestOffset(out, validationType);
         ownPartOneDigest = digestHandshake(out, digestOffset, SERVER_CONST);
         out.setBytes(digestOffset, ownPartOneDigest);
         return out;
