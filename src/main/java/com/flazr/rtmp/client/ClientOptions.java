@@ -86,11 +86,11 @@ public class ClientOptions {
     );
 
     public ClientOptions(String url, String saveAs) {
-        this(url);
+        parseUrl(url);
         this.saveAs = saveAs;
     }
 
-    public ClientOptions(String url) {
+    public void parseUrl(String url) {
         Matcher matcher = URL_PATTERN.matcher(url);
         if (!matcher.matches()) {
             throw new RuntimeException("invalid url: " + url);
@@ -204,7 +204,12 @@ public class ClientOptions {
             return false;
         }
         String[] actualArgs = line.getArgs();
-        streamName = actualArgs[0];
+        Matcher matcher = URL_PATTERN.matcher(actualArgs[0]);
+        if (matcher.matches()) {
+            parseUrl(actualArgs[0]);
+        } else {
+            streamName = actualArgs[0];
+        }
         if(publishType != null) {
             if(actualArgs.length < 2) {
                 System.err.println("fileToPublish is required for publish mode");
