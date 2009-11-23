@@ -47,36 +47,25 @@ public abstract class RtmpPublisher {
     private long seekTime;
     private long timePosition;
     private int currentConversationId;    
-    private int playLength;
+    private int playLength = -1;
     private boolean paused;
     private int targetBufferDuration = 5000;
-
-    public static RtmpMessageReader getReader(String appName, String streamName) {
-        final String path = RtmpConfig.SERVER_HOME_DIR + "/apps/" + appName + "/";
-        try {
-            if(streamName.startsWith("mp4:")) {
-                streamName = streamName.substring(4);
-                return new F4vReader(path + streamName);
-            } else {
-                final String readerPlayName;
-                if(streamName.lastIndexOf('.') < streamName.length() - 4) {
-                    readerPlayName = streamName + ".flv";
-                } else {
-                    readerPlayName = streamName;
-                }
-                return new FlvReader(path + readerPlayName);
-            }
-        } catch(Exception e) {
-            logger.info("reader creation failed: {}", e.getMessage());
-            return null;
-        }
-    }
 
     public RtmpPublisher(RtmpMessageReader reader, Timer timer, int streamId) {
         this.reader = reader;
         this.timer = timer;
         this.streamId = streamId;        
-        logger.info("publisher init, streamId: {}", streamId);
+        logger.debug("publisher init, streamId: {}", streamId);
+    }
+
+    public static RtmpMessageReader getReader(String path) {
+        if(path.toLowerCase().startsWith("mp4:")) {
+            return new F4vReader(path.substring(4));
+        } else if (path.toLowerCase().endsWith(".f4v")) {
+            return new F4vReader(path);
+        } else {
+            return new FlvReader(path);
+        }
     }
 
     public void setTargetBufferDuration(int targetBufferDuration) {
@@ -124,7 +113,7 @@ public abstract class RtmpPublisher {
             seekTime = 0;
         }
         timePosition = seekTime;
-        logger.info("play start, seek requested: {} actual seek: {}, play length: {}, conversation: {}",
+        logger.debug("play start, seek requested: {} actual seek: {}, play length: {}, conversation: {}",
                 new Object[]{seekTimeRequested, seekTime, playLength, currentConversationId});
         for(final RtmpMessage message : messages) {
             writeToStream(channel, message);

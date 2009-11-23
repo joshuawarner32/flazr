@@ -210,7 +210,7 @@ public class Utils {
         }
     }
 
-    private static final String COPYRIGHT_MESSAGE =
+    private static final String COPYRIGHT_NOTICE =
     "\nFlazr <http://flazr.com> Copyright (C) 2009  Peter Thomas.\n"
     + "This program comes with ABSOLUTELY NO WARRANTY.\n"
     + "Flazr is free software, and you are welcome to redistribute it\n"
@@ -218,8 +218,15 @@ public class Utils {
     + "GNU Lesser General Public License along with Flazr.\n"
     + "If not, see <http://www.gnu.org/licenses/>\n";
 
-    public static void outputCopyrightNotice() {
-        System.err.println(COPYRIGHT_MESSAGE);
+    public static void printlnCopyrightNotice() {
+        System.err.println(COPYRIGHT_NOTICE);
+    }
+
+    public static String trimSlashes(final String raw) {
+        if(raw == null) {
+            return null;
+        }
+        return raw.replace("/", "").replace("\\", "");
     }
 
 }

@@ -26,19 +26,19 @@ import org.jboss.netty.channel.Channels;
 
 public class ClientPipelineFactory implements ChannelPipelineFactory {
 
-    private ClientSession session;
+    private ClientOptions options;
 
-    public ClientPipelineFactory(ClientSession session) {
-        this.session = session;
+    public ClientPipelineFactory(ClientOptions options) {
+        this.options = options;
     }
 
     @Override
     public ChannelPipeline getPipeline() {
         ChannelPipeline pipeline = Channels.pipeline();        
-        pipeline.addLast("handshaker", new ClientHandshakeHandler(session));
+        pipeline.addLast("handshaker", new ClientHandshakeHandler(options));
         pipeline.addLast("decoder", new RtmpDecoder());
         pipeline.addLast("encoder", new RtmpEncoder());
-        pipeline.addLast("handler", new ClientHandler(session));
+        pipeline.addLast("handler", new ClientHandler(options));
         return pipeline;
     }
 

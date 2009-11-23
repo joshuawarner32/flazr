@@ -71,13 +71,7 @@ public class FlvReader implements RtmpMessageReader {
 
     @Override
     public RtmpMessage[] getStartMessages() {
-        return new RtmpMessage[] {
-            Metadata.rtmpSampleAccess(),
-            Audio.empty(),
-            Metadata.dataStart(),
-            // Video.empty(),
-            getMetadata(),
-        };
+        return new RtmpMessage[] {getMetadata()};
     }
 
     @Override

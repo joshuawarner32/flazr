@@ -24,26 +24,20 @@ import java.nio.ByteBuffer;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 
-public class Audio extends AbstractMessage {
-    
-    private ChannelBuffer data;
+public class Audio extends DataMessage {
 
-    public Audio(RtmpHeader header, ChannelBuffer in) {
+    public Audio(final RtmpHeader header, final ChannelBuffer in) {
         super(header, in);
     }
 
-    public Audio(byte[] ... bytes) {
+    public Audio(final byte[] ... bytes) {
         data = ChannelBuffers.wrappedBuffer(bytes);
     }
 
-    public Audio(int time, byte[] prefix, ByteBuffer bb) {
+    public Audio(final int time, final byte[] prefix, final ByteBuffer bb) {
         header.setTime(time);
         data = ChannelBuffers.wrappedBuffer(ByteBuffer.wrap(prefix), bb);
         header.setSize(data.readableBytes());
-    }
-
-    private Audio() {
-        super();
     }
     
     public static Audio empty() {
@@ -55,21 +49,6 @@ public class Audio extends AbstractMessage {
     @Override
     MessageType getMessageType() {
         return MessageType.AUDIO;
-    }
-
-    @Override
-    public ChannelBuffer encode() {
-        return data;
-    }
-
-    @Override
-    public void decode(ChannelBuffer in) {
-        data = in;
-    }
-
-    @Override
-    public String toString() {
-        return super.toString() + ChannelBuffers.hexDump(data);
     }
 
 }

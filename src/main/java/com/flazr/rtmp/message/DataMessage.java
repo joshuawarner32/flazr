@@ -20,38 +20,41 @@
 package com.flazr.rtmp.message;
 
 import com.flazr.rtmp.RtmpHeader;
-import java.nio.ByteBuffer;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 
-public class Video extends DataMessage {
+public abstract class DataMessage extends AbstractMessage {
 
-    public Video(final RtmpHeader header, final ChannelBuffer in) {
+    private boolean encoded;
+    protected ChannelBuffer data;
+
+    public DataMessage() {
+        super();
+    }
+
+    public DataMessage(final RtmpHeader header, final ChannelBuffer in) {
         super(header, in);
     }
 
-    public Video(final byte[] ... bytes) {
-        data = ChannelBuffers.wrappedBuffer(bytes);
-    }
-
-    public Video(final int time, final byte[] prefix, final int compositionOffset, final ByteBuffer bb) {
-        header.setTime(time);
-        final ChannelBuffer cb = ChannelBuffers.buffer(prefix.length + 3);
-        cb.writeBytes(prefix);
-        cb.writeMedium(compositionOffset);
-        data = ChannelBuffers.wrappedBuffer(cb.toByteBuffer(), bb);
-        header.setSize(data.readableBytes());
-    }
-
-    public static Video empty() {
-        Video empty = new Video();
-        empty.data = ChannelBuffers.wrappedBuffer(new byte[2]);
-        return empty;
+    @Override
+    public ChannelBuffer encode() {
+        if(encoded) {
+            // in case used multiple times e.g. broadcast
+            data.resetReaderIndex();            
+        } else {
+            encoded = true;
+        }
+        return data;
     }
 
     @Override
-    MessageType getMessageType() {
-        return MessageType.VIDEO;
+    public void decode(ChannelBuffer in) {
+        data = in;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + ChannelBuffers.hexDump(data);
     }
 
 }

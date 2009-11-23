@@ -87,10 +87,6 @@ public class F4vReader implements RtmpMessageReader {
     @Override
     public RtmpMessage[] getStartMessages() {
         return new RtmpMessage[] {
-            Metadata.rtmpSampleAccess(),
-            Audio.empty(),
-            Metadata.dataStart(),
-            // Video.empty(),
             getMetadata(),
             new Video(AVC1_BEGIN_PREFIX, AVC1_BEGIN),
             new Audio(MP4A_BEGIN)

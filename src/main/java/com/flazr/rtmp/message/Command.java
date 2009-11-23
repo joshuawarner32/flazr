@@ -21,7 +21,7 @@ package com.flazr.rtmp.message;
 
 import com.flazr.amf.Amf0Object;
 import com.flazr.rtmp.RtmpHeader;
-import com.flazr.rtmp.client.ClientSession;
+import com.flazr.rtmp.client.ClientOptions;
 import java.util.Arrays;
 import java.util.Map;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -65,21 +65,21 @@ public abstract class Command extends AbstractMessage {
 
     //==========================================================================
 
-    public static Command connect(ClientSession session) {
+    public static Command connect(ClientOptions options) {
         Amf0Object object = object(
-            pair("app", session.getAppName()),
+            pair("app", options.getAppName()),
             pair("flashVer", "WIN 9,0,124,2"),
-            pair("tcUrl", session.getTcUrl()),
+            pair("tcUrl", options.getTcUrl()),
             pair("fpad", false),
             pair("audioCodecs", 1639.0),
             pair("videoCodecs", 252.0),
             pair("objectEncoding", 0.0),
             pair("capabilities", 15.0),
             pair("videoFunction", 1.0));
-        if(session.getParams() != null) {
-            object.putAll(session.getParams());
+        if(options.getParams() != null) {
+            object.putAll(options.getParams());
         }
-        return new CommandAmf0("connect", object, session.getArgs());
+        return new CommandAmf0("connect", object, options.getArgs());
     }
 
     public static Command connectSuccess(int transactionId) {
@@ -108,9 +108,9 @@ public abstract class Command extends AbstractMessage {
         return new CommandAmf0(transactionId, "_result", null, streamId);
     }
 
-    public static Command play(int streamId, ClientSession session) {
+    public static Command play(int streamId, ClientOptions options) {
         Command command = new CommandAmf0("play", null,
-            session.getPlayName(), session.getPlayStart(), session.getPlayDuration());
+            options.getStreamName(), options.getStart(), options.getDuration());
         command.header.setChannelId(8);
         command.header.setStreamId(streamId);        
         return command;
@@ -180,15 +180,28 @@ public abstract class Command extends AbstractMessage {
         return command;
     }
     
-    public static Command publish(int streamId, ClientSession session) { // TODO
-        Command command = new CommandAmf0("publish", null, session.getPlayName(), session.getType().getPublishType());
+    public static Command publish(int streamId, ClientOptions options) { // TODO
+        Command command = new CommandAmf0("publish", null, options.getStreamName(),
+                options.getPublishType().asString());
         command.header.setChannelId(8);
         command.header.setStreamId(streamId);
         return command;
     }
 
-    public static Command unPublish(int streamId) { // TODO
+    public static Command unpublish(int streamId) { // TODO
         Command command = new CommandAmf0("publish", null, false);
+        command.header.setChannelId(8);
+        command.header.setStreamId(streamId);
+        return command;
+    }
+
+    public static Command unpublishSuccess(String streamName, String clientId, int streamId) {
+        Amf0Object status = status(
+                "NetStream.Unpublish.Success",
+                "Unpublished " + streamName,
+                pair("details", streamName),
+                pair("clientid", clientId));
+        Command command = new CommandAmf0("onStatus", null, status);
         command.header.setChannelId(8);
         command.header.setStreamId(streamId);
         return command;

@@ -40,8 +40,8 @@ public class ClientHandshakeHandler extends FrameDecoder implements ChannelDowns
     private RtmpHandshake handshake;
     private boolean handshakeDone;
 
-    public ClientHandshakeHandler(ClientSession session) {
-        handshake = new RtmpHandshake(session);
+    public ClientHandshakeHandler(ClientOptions options) {
+        handshake = new RtmpHandshake(options);
     }
 
     @Override

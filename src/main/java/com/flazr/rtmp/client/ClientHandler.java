@@ -24,6 +24,7 @@ import static com.flazr.rtmp.message.Control.Type.*;
 
 import com.flazr.rtmp.message.Control;
 import com.flazr.rtmp.RtmpMessage;
+import com.flazr.rtmp.RtmpMessageReader;
 import com.flazr.rtmp.RtmpPublisher;
 import com.flazr.rtmp.message.BytesRead;
 import com.flazr.rtmp.message.ChunkSize;
@@ -31,9 +32,8 @@ import com.flazr.rtmp.message.WindowAckSize;
 import com.flazr.rtmp.message.Command;
 import com.flazr.rtmp.message.Metadata;
 import com.flazr.rtmp.message.SetPeerBw;
+import com.flazr.util.ChannelUtils;
 import com.flazr.util.Utils;
-import java.io.IOException;
-import java.nio.channels.ClosedChannelException;
 import java.util.HashMap;
 import java.util.Map;
 import org.jboss.netty.channel.Channel;
@@ -57,7 +57,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
 
     private int transactionId = 1;
     private Map<Integer, String> transactionToCommandMap;
-    private ClientSession session;
+    private ClientOptions options;
     private byte[] swfvBytes;
 
     private FlvWriter writer;
@@ -76,8 +76,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
         logger.info("set swf verification bytes: {}", Utils.toHex(swfvBytes));        
     }
 
-    public ClientHandler(ClientSession session) {
-        this.session = session;
+    public ClientHandler(ClientOptions options) {
+        this.options = options;
         transactionToCommandMap = new HashMap<Integer, String>();        
     }
 
@@ -92,7 +92,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
         logger.info("handshake complete, sending 'connect'");
-        writeCommandExpectingResult(e.getChannel(), Command.connect(session));
+        writeCommandExpectingResult(e.getChannel(), Command.connect(options));
     }
 
     @Override
@@ -109,7 +109,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     }
     
     @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent me) {
+    public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent me) {
         if(publisher != null && publisher.handle(me)) {
             return;
         }
@@ -118,7 +118,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
         switch(message.getHeader().getMessageType()) {
             case CONTROL:
                 Control control = (Control) message;
-                logger.debug("server control: {}", control);
+                logger.debug("control: {}", control);
                 switch(control.getType()) {
                     case PING_REQUEST:
                         final int time = control.getTime();
@@ -140,8 +140,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                     case STREAM_BEGIN:
                         if(publisher != null) {
                             logger.info("publish mode, stream begin, will start {}", control);
-                            publisher.start(channel, session.getPlayStart(),
-                                    session.getPlayDuration(), new ChunkSize(4096));
+                            publisher.start(channel, options.getStart(),
+                                    options.getDuration(), new ChunkSize(4096));
                             return;
                         }
                         break;
@@ -153,10 +153,10 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
             case METADATA_AMF3:
                 Metadata metadata = (Metadata) message;
                 if(metadata.getName().equals("onMetaData")) {
-                    logger.info("writing server 'onMetaData': {}", metadata);
+                    logger.info("writing 'onMetaData': {}", metadata);
                     writer.write(message);
                 } else {
-                    logger.info("ignoring server metadata: {}", metadata);
+                    logger.info("ignoring metadata: {}", metadata);
                 }
                 break;
             case AUDIO:
@@ -183,19 +183,20 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                     } else if(resultFor.equals("createStream")) {
                         streamId = ((Double) command.getArg(0)).intValue();
                         logger.info("streamId to use: {}", streamId);
-                        if(session.getType().isPublish()) {
-                            timer = new HashedWheelTimer();                            
-                            publisher = new RtmpPublisher(session.getReader(), timer, streamId) {
+                        if(options.getPublishType() != null) { // TODO append, record
+                            timer = new HashedWheelTimer();
+                            final RtmpMessageReader reader = RtmpPublisher.getReader(options.getFileToPublish());
+                            publisher = new RtmpPublisher(reader, timer, streamId) {
                                 @Override protected RtmpMessage[] getStopMessages(long timePosition) {
-                                    return new RtmpMessage[]{Command.unPublish(streamId)};
+                                    return new RtmpMessage[]{Command.unpublish(streamId)};
                                 }
                             };                            
                             publisher.setTargetBufferDuration(200); // TODO cleanup
-                            channel.write(Command.publish(streamId, session));
+                            channel.write(Command.publish(streamId, options));
                             return;
                         } else {
-                            writer = new FlvWriter(session.getPlayStart(), session.getSaveAs());
-                            channel.write(Command.play(streamId, session));
+                            writer = new FlvWriter(options.getStart(), options.getSaveAs());
+                            channel.write(Command.play(streamId, options));
                         }
                     } else {
                         logger.warn("un-handled server result for: {}", resultFor);
@@ -208,7 +209,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         logger.info("disconnecting, bytes read: {}", bytesRead);                        
                         channel.close();
                     }
-                    if (code.equals("NetStream.Unpublish.Success")) {
+                    if (publisher != null && code.equals("NetStream.Unpublish.Success")) {
                         logger.info("unpublish success, closing channel");
                         ChannelFuture future = channel.write(Command.closeStream(streamId));
                         future.addListener(ChannelFutureListener.CLOSE);
@@ -243,16 +244,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
-        if (e.getCause() instanceof ClosedChannelException) {
-            logger.info("exception: {}", e);
-        } else if(e.getCause() instanceof IOException) {
-            logger.info("exception: {}", e.getCause().getMessage());
-        } else {
-            logger.warn("exception: {}", e.getCause());
-        }
-        if(e.getChannel().isOpen()) {
-            e.getChannel().close();
-        }
+        ChannelUtils.exceptionCaught(e);
     }    
 
 }

@@ -22,6 +22,8 @@ package com.flazr.rtmp.server;
 import com.flazr.rtmp.RtmpConfig;
 import com.flazr.util.StopMonitor;
 import java.net.InetSocketAddress;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.jboss.netty.bootstrap.ServerBootstrap;
@@ -39,10 +41,13 @@ public class RtmpServer {
 
     private static final Logger logger = LoggerFactory.getLogger(RtmpServer.class);
     
-    protected static final ChannelGroup ALL_CHANNELS = new DefaultChannelGroup("rtmp-server");    
+    protected static final ChannelGroup CHANNELS = new DefaultChannelGroup("server-channels");
 
-    protected static final Timer GLOBAL_TIMER =
-            new HashedWheelTimer(RtmpConfig.TIMER_TICK_SIZE, TimeUnit.MILLISECONDS);
+    protected static final Map<String, ServerApplication> APPLICATIONS =
+            new ConcurrentHashMap<String, ServerApplication>();
+
+    protected static final Timer TIMER =
+            new HashedWheelTimer(RtmpConfig.TIMER_TICK_SIZE, TimeUnit.MILLISECONDS);    
 
     public static void main(String[] args) throws Exception {
 
@@ -66,8 +71,8 @@ public class RtmpServer {
         monitor.start();
         monitor.join();
 
-        GLOBAL_TIMER.stop();
-        ChannelGroupFuture future = ALL_CHANNELS.close();
+        TIMER.stop();
+        ChannelGroupFuture future = CHANNELS.close();
         logger.info("closing channels");
         future.awaitUninterruptibly();
         logger.info("releasing resources");

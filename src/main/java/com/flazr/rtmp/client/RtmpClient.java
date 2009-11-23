@@ -19,7 +19,6 @@
 
 package com.flazr.rtmp.client;
 
-import com.flazr.io.flv.FlvReader;
 import com.flazr.util.Utils;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
@@ -31,14 +30,15 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 public class RtmpClient {
 
     public static void main(String[] args) {        
-        ClientSession session = new ClientSession("localhost", "live", "cameraFeed", null);
-        session.setReader(new FlvReader("home/apps/vod/sample.flv"));
-        session.setType(ClientSession.Type.PUBLISH_LIVE);
-        connect(session);
+        ClientOptions options = new ClientOptions();
+        if(!options.parseCli(args)) {
+            return;
+        }
+        connect(options);
     }
 
-    public static void connect(ClientSession session) {
-        Utils.outputCopyrightNotice();
+    public static void connect(ClientOptions session) {
+        Utils.printlnCopyrightNotice();
         ChannelFactory factory = new NioClientSocketChannelFactory (
             Executors.newCachedThreadPool(),
             Executors.newCachedThreadPool());

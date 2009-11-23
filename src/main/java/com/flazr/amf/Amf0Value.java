@@ -68,7 +68,7 @@ public class Amf0Value {
             return converter.valueToEnum(value);
         }
 
-        public static Type getType(final Object value) {
+        private static Type getType(final Object value) {
             if (value == null) {
                 return NULL;
             } else if (value instanceof String) {
@@ -185,7 +185,7 @@ public class Amf0Value {
                 // no break; remaining processing same as OBJECT
             case OBJECT:
                 final Map<String, Object> map;
-                if(type == MAP) {
+                if(type == Type.MAP) {
                     map = new LinkedHashMap<String, Object>();
                 } else {
                     map = new Amf0Object();
@@ -221,7 +221,7 @@ public class Amf0Value {
     private static String toString(final Type type, final Object value) {
         StringBuilder sb = new StringBuilder();
         sb.append('[').append(type).append(" ");
-        if(type == ARRAY) {
+        if(type == Type.ARRAY) {
             sb.append(Arrays.toString((Object[]) value));
         } else {
             sb.append(value);

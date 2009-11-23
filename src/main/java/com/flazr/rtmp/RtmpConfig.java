@@ -63,7 +63,7 @@ public class RtmpConfig {
     }
 
     private static void configure(Type type) {
-        Utils.outputCopyrightNotice();
+        Utils.printlnCopyrightNotice();
         File propsFile = new File("conf/flazr.properties");
         if(!propsFile.exists()) {
             logger.warn("{} not found, will use configuration defaults", propsFile.getAbsolutePath());
