@@ -23,21 +23,25 @@ import com.flazr.rtmp.*;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
+import org.jboss.netty.handler.execution.ExecutionHandler;
+import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 public class ClientPipelineFactory implements ChannelPipelineFactory {
 
-    private ClientOptions options;
+    private final ClientOptions options;
 
-    public ClientPipelineFactory(ClientOptions options) {
+    public ClientPipelineFactory(final ClientOptions options) {
         this.options = options;
     }
 
     @Override
     public ChannelPipeline getPipeline() {
-        ChannelPipeline pipeline = Channels.pipeline();        
+        final ChannelPipeline pipeline = Channels.pipeline();
         pipeline.addLast("handshaker", new ClientHandshakeHandler(options));
         pipeline.addLast("decoder", new RtmpDecoder());
         pipeline.addLast("encoder", new RtmpEncoder());
+        pipeline.addLast("executor", new ExecutionHandler(
+                new OrderedMemoryAwareThreadPoolExecutor(16, 1048576, 1048576)));
         pipeline.addLast("handler", new ClientHandler(options));
         return pipeline;
     }

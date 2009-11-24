@@ -53,7 +53,7 @@ public enum BoxType {
     /*               */ STSC,
     /*               */ STSZ,
     /*               */ STCO,
-    /*               */ CO64, //TODO
+    /*               */ CO64,
     /*               */ STSS,
     MDAT,           //======
     UNKNOWN;
@@ -87,6 +87,7 @@ public enum BoxType {
             case STSC: return new STSC(in);
             case STSZ: return new STSZ(in);
             case STCO: return new STCO(in);
+            case CO64: return new STCO(in, true);
             case STSS: return new STSS(in);            
             default: return new UnknownPayload(in, this);
         }

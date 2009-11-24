@@ -34,7 +34,7 @@ public class Sample implements Comparable {
     private int time;
     private int compositionTimeOffset;
     private boolean syncSample;
-    private int fileOffset;
+    private long fileOffset;
 
     public int convertFromTimeScale(final long time) {
         final BigDecimal factor = new BigDecimal(time * 1000);
@@ -47,11 +47,11 @@ public class Sample implements Comparable {
 
     //==========================================================================
 
-    public int getFileOffset() {
+    public long getFileOffset() {
         return fileOffset;
     }
 
-    public void setFileOffset(int fileOffset) {
+    public void setFileOffset(long fileOffset) {
         this.fileOffset = fileOffset;
     }
 

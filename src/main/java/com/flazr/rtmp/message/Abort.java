@@ -37,4 +37,9 @@ public class Abort extends AbstractMessage {
         streamId = in.readInt();
     }
 
+    @Override
+    public String toString() {
+        return super.toString() + "streamId: " + streamId;
+    }
+
 }

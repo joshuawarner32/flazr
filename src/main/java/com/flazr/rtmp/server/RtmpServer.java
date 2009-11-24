@@ -53,26 +53,26 @@ public class RtmpServer {
 
         RtmpConfig.configureServer();
 
-        ChannelFactory factory = new NioServerSocketChannelFactory(
+        final ChannelFactory factory = new NioServerSocketChannelFactory(
                 Executors.newCachedThreadPool(),
                 Executors.newCachedThreadPool());
 
-        ServerBootstrap bootstrap = new ServerBootstrap(factory);
+        final ServerBootstrap bootstrap = new ServerBootstrap(factory);
 
         bootstrap.setPipelineFactory(new ServerPipelineFactory());
         bootstrap.setOption("child.tcpNoDelay", true);
         bootstrap.setOption("child.keepAlive", true);
 
-        InetSocketAddress socketAddress = new InetSocketAddress(RtmpConfig.SERVER_PORT);
+        final InetSocketAddress socketAddress = new InetSocketAddress(RtmpConfig.SERVER_PORT);
         bootstrap.bind(socketAddress);
         logger.info("server started, listening on: {}", socketAddress);
 
-        Thread monitor = new StopMonitor(RtmpConfig.SERVER_STOP_PORT);
+        final Thread monitor = new StopMonitor(RtmpConfig.SERVER_STOP_PORT);
         monitor.start();
         monitor.join();
 
         TIMER.stop();
-        ChannelGroupFuture future = CHANNELS.close();
+        final ChannelGroupFuture future = CHANNELS.close();
         logger.info("closing channels");
         future.awaitUninterruptibly();
         logger.info("releasing resources");

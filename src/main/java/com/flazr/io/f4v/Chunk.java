@@ -26,7 +26,7 @@ import java.util.List;
 public class Chunk implements Comparable {
     
     private int sampleDescIndex;    
-    private int fileOffset;
+    private long fileOffset;
     private List<Sample> samples = new ArrayList<Sample>();
 
     private TrackInfo track;
@@ -53,11 +53,11 @@ public class Chunk implements Comparable {
         return track;
     }
 
-    public int getFileOffset() {
+    public long getFileOffset() {
         return fileOffset;
     }
 
-    public void setFileOffset(int fileOffset) {
+    public void setFileOffset(long fileOffset) {
         this.fileOffset = fileOffset;
     }
 
@@ -88,7 +88,7 @@ public class Chunk implements Comparable {
 
     @Override
     public int compareTo(final Object o) {
-        return fileOffset - ((Chunk) o).fileOffset;
+        return (int) (fileOffset - ((Chunk) o).fileOffset);
     }
 
     @Override
@@ -105,7 +105,7 @@ public class Chunk implements Comparable {
 
     @Override
     public int hashCode() {
-        return fileOffset;
+        return (int) fileOffset;
     }
 
     @Override

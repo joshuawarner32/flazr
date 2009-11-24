@@ -89,6 +89,12 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     }
 
     @Override
+    public void channelOpen(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+        logger.info("channel opened: {}", e);
+        super.channelOpen(ctx, e);
+    }
+
+    @Override
     public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
         logger.info("handshake complete, sending 'connect'");
         writeCommandExpectingResult(e.getChannel(), Command.connect(options));
@@ -96,6 +102,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
 
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+        logger.info("channel closed: {}", e);
         if(timer != null) {
             timer.stop();
         }
@@ -105,6 +112,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
         if(publisher != null) {
             publisher.getReader().close();
         }
+        super.channelClosed(ctx, e);
     }
     
     @Override
@@ -157,10 +165,10 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
             case METADATA_AMF3:
                 Metadata metadata = (Metadata) message;
                 if(metadata.getName().equals("onMetaData")) {
-                    logger.info("writing 'onMetaData': {}", metadata);
+                    logger.debug("writing 'onMetaData': {}", metadata);
                     writer.write(message);
                 } else {
-                    logger.info("ignoring metadata: {}", metadata);
+                    logger.debug("ignoring metadata: {}", metadata);
                 }
                 break;
             case AUDIO:
@@ -169,7 +177,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 writer.write(message);
                 bytesRead += message.getHeader().getSize();
                 if((bytesRead - bytesReadLastSent) > bytesReadWindow) {
-                    logger.info("sending bytes read ack {}", bytesRead);
+                    logger.debug("sending bytes read ack {}", bytesRead);
                     bytesReadLastSent = bytesRead;
                     channel.write(new BytesRead(bytesRead));
                 }
@@ -178,7 +186,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
             case COMMAND_AMF3:
                 Command command = (Command) message;                
                 String name = command.getName();
-                logger.info("server command: {}", name);
+                logger.debug("server command: {}", name);
                 if(name.equals("_result")) {
                     String resultFor = transactionToCommandMap.get(command.getTransactionId());
                     logger.info("result for method call: {}", resultFor);
@@ -186,7 +194,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         writeCommandExpectingResult(channel, Command.createStream());
                     } else if(resultFor.equals("createStream")) {
                         streamId = ((Double) command.getArg(0)).intValue();
-                        logger.info("streamId to use: {}", streamId);                        
+                        logger.debug("streamId to use: {}", streamId);
                         if(options.getPublishType() != null) { // TODO append, record
                             timer = new HashedWheelTimer();
                             final RtmpMessageReader reader = RtmpPublisher.getReader(options.getFileToPublish());

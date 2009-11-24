@@ -21,7 +21,6 @@ package com.flazr.rtmp;
 
 import com.flazr.rtmp.message.ChunkSize;
 import com.flazr.rtmp.message.Control;
-import java.util.Iterator;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -46,15 +45,11 @@ public class RtmpEncoder extends SimpleChannelDownstreamHandler {
     }
 
     @Override
-    public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent e) {
-        final RtmpMessage message = (RtmpMessage) e.getMessage();
-        final Iterator<ChannelBuffer> chunks = encode(message);
-        while(chunks.hasNext() && ctx.getChannel().isWritable()) {
-            Channels.write(ctx, e.getFuture(), chunks.next());
-        }
+    public void writeRequested(final ChannelHandlerContext ctx, final MessageEvent e) {        
+        Channels.write(ctx, e.getFuture(), encode((RtmpMessage) e.getMessage()));
     }
 
-    public Iterator<ChannelBuffer> encode(final RtmpMessage message) {
+    public ChannelBuffer encode(final RtmpMessage message) {
         final ChannelBuffer in = message.encode();
         final RtmpHeader header = message.getHeader();
         if(header.isChunkSize()) {
@@ -89,44 +84,21 @@ public class RtmpEncoder extends SimpleChannelDownstreamHandler {
         channelPrevHeaders[channelId] = header;        
         if(logger.isDebugEnabled()) {
             logger.debug(">> {}", message);
-        }        
-        return iterator(header, in, chunkSize);
-    }
-
-    private static Iterator<ChannelBuffer> iterator(
-            final RtmpHeader header, final ChannelBuffer in, final int chunkSizeToUse) {
-
-        return new Iterator<ChannelBuffer>() {
-                        
-            private boolean first = true;
-
-            @Override
-            public boolean hasNext() {
-                return in.readable();
+        }                
+        final ChannelBuffer out = ChannelBuffers.buffer(
+                RtmpHeader.MAX_ENCODED_SIZE + header.getSize() + header.getSize() / chunkSize);
+        boolean first = true;
+        while(in.readable()) {
+            final int size = Math.min(chunkSize, in.readableBytes());
+            if(first) {                
+                header.encode(out);
+                first = false;
+            } else {                
+                out.writeBytes(header.getTinyHeader());
             }
-
-            @Override
-            public ChannelBuffer next() {
-                final int size = Math.min(chunkSizeToUse, in.readableBytes());
-                final ChannelBuffer out;
-                if(first) {
-                    out = ChannelBuffers.buffer(size + RtmpHeader.MAX_ENCODED_SIZE);
-                    header.encode(out);
-                    first = false;
-                } else {
-                    out = ChannelBuffers.buffer(size + 1);
-                    out.writeBytes(header.getTinyHeader());
-                }
-                in.readBytes(out, size);
-                return out;
-            }
-
-            @Override
-            public void remove() {
-                throw new UnsupportedOperationException("remove() not supported");
-            }
-
-        };
+            in.readBytes(out, size);
+        }
+        return out;
     }
 
 }

@@ -31,17 +31,24 @@ import org.slf4j.LoggerFactory;
 public class STCO implements Payload {
 
     private static final Logger logger = LoggerFactory.getLogger(STCO.class);
-    private List<Integer> offsets;
+
+    private final boolean co64;
+    private List<Long> offsets;
 
     public STCO(ChannelBuffer in) {
+        this(in, false);
+    }
+
+    public STCO(ChannelBuffer in, boolean co64) {
+        this.co64 = co64;
         read(in);
     }
 
-    public void setOffsets(List<Integer> offsets) {
+    public void setOffsets(List<Long> offsets) {
         this.offsets = offsets;
     }
 
-    public List<Integer> getOffsets() {
+    public List<Long> getOffsets() {
         return offsets;
     }
 
@@ -50,9 +57,9 @@ public class STCO implements Payload {
         in.readInt(); // UI8 version + UI24 flags
         final int count = in.readInt();
         logger.debug("no of chunk offsets: {}", count);
-        offsets = new ArrayList<Integer>(count);
+        offsets = new ArrayList<Long>(count);
         for (int i = 0; i < count; i++) {
-            final Integer offset = in.readInt();
+            final Long offset = co64 ? in.readLong() : in.readInt();
             // logger.debug("#{} offset: {}", new Object[]{i, offset});
             offsets.add(offset);
         }
@@ -63,8 +70,12 @@ public class STCO implements Payload {
         ChannelBuffer out = ChannelBuffers.dynamicBuffer();
         out.writeInt(0); // UI8 version + UI24 flags        
         out.writeInt(offsets.size());
-        for (Integer offset : offsets) {
-            out.writeInt(offset);
+        for (Long offset : offsets) {
+            if(co64) {
+                out.writeLong(offset);
+            } else {
+                out.writeInt(offset.intValue());
+            }
         }
         return out;
     }

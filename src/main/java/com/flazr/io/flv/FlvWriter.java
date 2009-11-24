@@ -39,13 +39,15 @@ public class FlvWriter {
     private int primaryChannel = -1;
     private int lastLoggedSeconds;
     private final int seekTime;
+    private final long startTime;
 
-    public FlvWriter(String fileName) {
+    public FlvWriter(final String fileName) {
         this(0, fileName);
     }
 
-    public FlvWriter(int seekTime, String fileName) {
+    public FlvWriter(final int seekTime, final String fileName) {
         this.seekTime = seekTime;
+        this.startTime = System.currentTimeMillis();
         if(fileName == null) {
             logger.info("save file notspecified, will only consume stream");
             out = null;
@@ -74,8 +76,10 @@ public class FlvWriter {
             logger.warn("no media was written, closed file");
             return;
         }
-        logger.info("closed file, final media duration: {} seconds (seek time: {})",
-                (channelTimes[primaryChannel] - seekTime) / 1000, seekTime / 1000);
+        logger.info("finished in {} seconds, media duration: {} seconds (seek time: {})",
+                new Object[]{(System.currentTimeMillis() - startTime) / 1000,
+                (channelTimes[primaryChannel] - seekTime) / 1000, 
+                seekTime / 1000});
     }
 
     private void logWriteProgress() {
@@ -86,8 +90,8 @@ public class FlvWriter {
         }
     }
 
-    public void write(RtmpMessage message) {
-        RtmpHeader header = message.getHeader();
+    public void write(final RtmpMessage message) {
+        final RtmpHeader header = message.getHeader();
         if(header.isAggregate()) {
             final ChannelBuffer in = message.encode();
             while (in.readable()) {

@@ -21,8 +21,6 @@ package com.flazr.rtmp.proxy;
 
 import com.flazr.rtmp.RtmpEncoder;
 import com.flazr.rtmp.RtmpMessage;
-import java.util.Iterator;
-import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipelineCoverage;
 import org.jboss.netty.channel.Channels;
@@ -35,12 +33,8 @@ public class ProxyEncoder extends SimpleChannelUpstreamHandler {
     private final RtmpEncoder encoder = new RtmpEncoder();
 
     @Override
-    public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent e) throws Exception {
-        final RtmpMessage message = (RtmpMessage) e.getMessage();
-        final Iterator<ChannelBuffer> chunks = encoder.encode(message);
-        while(chunks.hasNext()) {
-            Channels.fireMessageReceived(ctx, chunks.next());
-        }
+    public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent e) throws Exception {        
+        Channels.fireMessageReceived(ctx, encoder.encode((RtmpMessage) e.getMessage()));
     }
 
 }

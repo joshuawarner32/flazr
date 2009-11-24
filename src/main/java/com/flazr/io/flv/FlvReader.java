@@ -22,7 +22,6 @@ package com.flazr.io.flv;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.rtmp.RtmpMessageReader;
 import com.flazr.rtmp.message.Aggregate;
-import com.flazr.rtmp.message.Audio;
 import com.flazr.rtmp.message.MessageType;
 import com.flazr.rtmp.message.Metadata;
 import java.io.File;

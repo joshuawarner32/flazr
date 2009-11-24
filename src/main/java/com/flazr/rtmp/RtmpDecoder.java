@@ -69,7 +69,7 @@ public class RtmpDecoder extends ReplayingDecoder<DecoderState> {
                 in.readBytes(bytes);
                 payload.writeBytes(bytes);                
                 checkpoint(DecoderState.GET_HEADER);
-                if(payload.writable()) { // more chunks remain                    
+                if(payload.writable()) { // more chunks remain
                     return null;
                 }
                 incompletePayloads[channelId] = null;

@@ -25,6 +25,7 @@ import com.flazr.rtmp.server.ServerStream.PublishType;
 import com.flazr.util.Utils;
 import java.io.File;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -59,6 +60,9 @@ public class ClientOptions {
     private int buffer = 100;
     private byte[] swfHash;
     private int swfSize;
+    private int load = 1;
+    private int loop = 1;
+    private int threads = 10;
 
     public static void main(String[] args) {
         ClientOptions co = new ClientOptions();
@@ -168,9 +172,17 @@ public class ClientOptions {
         options.addOption(new Option("record", "publish local file to server in 'record' mode"));
         options.addOption(new Option("append", "publish local file to server in 'append' mode"));
         options.addOption(OptionBuilder.withArgName("property=value").hasArgs(2)
-                .withValueSeparator().withDescription("add / override connection param").create("D"));
+                .withValueSeparator().withDescription("add / over-ride connection param").create("D"));
         options.addOption(OptionBuilder.withArgName("swf").hasArg()
                 .withDescription("path to (decompressed) SWF for verification").create("swf"));
+        options.addOption(OptionBuilder.withArgName("version").hasArg()
+                .withDescription("client version to use in RTMP handshake (hex)").create("version"));
+        options.addOption(OptionBuilder.withArgName("load").hasArg()
+                .withDescription("no. of client connections (server load testing)").create("load"));
+        options.addOption(OptionBuilder.withArgName("loop").hasArg()
+                .withDescription("for publish mode, loop count").create("loop"));
+        options.addOption(OptionBuilder.withArgName("threads").hasArg()
+                .withDescription("for load testing (load) mode, thread pool size").create("threads"));
         return options;
     }
 
@@ -215,6 +227,30 @@ public class ClientOptions {
             if(line.hasOption("append")) {
                 publishAppend();
             }
+            if(line.hasOption("version")) {
+                clientVersionToUse = Utils.fromHex(line.getOptionValue("version"));
+                if(clientVersionToUse.length != 4) {
+                    throw new RuntimeException("client version to use has to be 4 bytes long");
+                }
+            }
+            if(line.hasOption("D")) { // TODO integers, TODO extra args for 'play' command
+                params = new HashMap(line.getOptionProperties("D"));
+            }
+            if(line.hasOption("load")) {
+                load = Integer.valueOf(line.getOptionValue("load"));
+                if(publishType != null && load > 1) {
+                    throw new RuntimeException("cannot publish in load testing mode");
+                }
+            }
+            if(line.hasOption("threads")) {
+                threads = Integer.valueOf(line.getOptionValue("threads"));
+            }
+            if(line.hasOption("loop")) {
+                loop = Integer.valueOf(line.getOptionValue("loop"));
+                if(publishType == null && loop > 1) {
+                    throw new RuntimeException("cannot loop when not in publish mode");
+                }
+            }
         } catch(Exception e) {
             System.err.println("parsing failed: " + e.getMessage());
             return false;
@@ -240,6 +276,22 @@ public class ClientOptions {
     }
 
     //==========================================================================
+
+    public int getLoad() {
+        return load;
+    }
+
+    public void setLoad(int load) {
+        this.load = load;
+    }
+
+    public int getLoop() {
+        return loop;
+    }
+
+    public void setLoop(int loop) {
+        this.loop = loop;
+    }
 
     public String getFileToPublish() {
         return fileToPublish;
@@ -381,6 +433,14 @@ public class ClientOptions {
         this.swfSize = swfSize;
     }
 
+    public int getThreads() {
+        return threads;
+    }
+
+    public void setThreads(int threads) {
+        this.threads = threads;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -403,6 +463,9 @@ public class ClientOptions {
             sb.append(" swfHash: ").append(Utils.toHex(swfHash));
             sb.append(" swfSize: ").append(swfSize);
         }
+        sb.append(" load: ").append(load);
+        sb.append(" loop: ").append(loop);
+        sb.append(" threads: ").append(threads);
         sb.append(']');
         return sb.toString();
     }

@@ -48,36 +48,35 @@ public class FlvAtom implements RtmpMessage {
         return out;
     }
 
-    public FlvAtom(ChannelBuffer in) {
+    public FlvAtom(final ChannelBuffer in) {
         header = readHeader(in);
         data = in.readBytes(header.getSize());
         in.skipBytes(4); // prev offset
     }
 
-    public FlvAtom(FileChannel in) {
-        ByteBuffer bb = ByteBuffer.allocate(11);
+    public FlvAtom(final FileChannel in) {
+        final ByteBuffer headerBuffer = ByteBuffer.allocate(11);
         try {
-            in.read(bb);
-            bb.flip();
-            ChannelBuffer cb = ChannelBuffers.wrappedBuffer(bb);
-            header = readHeader(cb);
-            bb = ByteBuffer.allocate(header.getSize());
-            in.read(bb);
-            bb.flip();
-            data = ChannelBuffers.wrappedBuffer(bb);
+            in.read(headerBuffer);
+            headerBuffer.flip();
+            header = readHeader(ChannelBuffers.wrappedBuffer(headerBuffer));
+            final ByteBuffer dataBuffer = ByteBuffer.allocate(header.getSize());
+            in.read(dataBuffer);
+            dataBuffer.flip();
+            data = ChannelBuffers.wrappedBuffer(dataBuffer);
             in.position(in.position() + 4); // prev offset
         } catch(Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    public FlvAtom(MessageType messageType, int time, ChannelBuffer in) {
+    public FlvAtom(final MessageType messageType, final int time, final ChannelBuffer in) {
         header = new RtmpHeader(messageType, time, in.readableBytes());
         data = in;
     }
 
     public ChannelBuffer write() {        
-        ChannelBuffer out = ChannelBuffers.buffer(15 + header.getSize());
+        final ChannelBuffer out = ChannelBuffers.buffer(15 + header.getSize());
         out.writeByte((byte) header.getMessageType().intValue());
         out.writeMedium(header.getSize());
         out.writeMedium(header.getTime());
@@ -87,7 +86,7 @@ public class FlvAtom implements RtmpMessage {
         return out;
     }
 
-    public static RtmpHeader readHeader(ChannelBuffer in) {
+    public static RtmpHeader readHeader(final ChannelBuffer in) {
         final MessageType messageType = MessageType.valueToEnum(in.readByte());
         final int size = in.readMedium();
         final int time = in.readMedium();
@@ -112,7 +111,7 @@ public class FlvAtom implements RtmpMessage {
     }
 
     @Override
-    public void decode(ChannelBuffer in) {
+    public void decode(final ChannelBuffer in) {
         data = in;
     }
 
