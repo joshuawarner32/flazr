@@ -56,7 +56,7 @@ public class ClientOptions {
     private byte[] clientVersionToUse;
     private int start = -2;
     private int length = -1;
-    private int buffer = 300;
+    private int buffer = 100;
     private byte[] swfHash;
     private int swfSize;
 
