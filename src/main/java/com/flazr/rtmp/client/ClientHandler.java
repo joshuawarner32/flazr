@@ -141,7 +141,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         if(publisher != null) {
                             logger.info("publish mode, stream begin, will start {}", control);
                             publisher.start(channel, options.getStart(),
-                                    options.getDuration(), new ChunkSize(4096));
+                                    options.getLength(), new ChunkSize(4096));
                             return;
                         }
                         break;
@@ -202,11 +202,14 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         logger.warn("un-handled server result for: {}", resultFor);
                     }
                 } else if(name.equals("onStatus")) {
-                    Map<String, Object> temp = (Map) command.getArg(0);
-                    String code = (String) temp.get("code");
+                    final Map<String, Object> temp = (Map) command.getArg(0);
+                    final String code = (String) temp.get("code");
                     logger.info("onStatus code: {}", code);
-                    if (code.equals("NetStream.Failed") || code.equals("NetStream.Play.Failed") || code.equals("NetStream.Play.Stop")) {
-                        logger.info("disconnecting, bytes read: {}", bytesRead);                        
+                    if (code.equals("NetStream.Failed") // TODO cleanup
+                            || code.equals("NetStream.Play.Failed")
+                            || code.equals("NetStream.Play.Stop")
+                            || code.equals("NetStream.Play.StreamNotFound")) {
+                        logger.info("disconnecting, code: {}, bytes read: {}", code, bytesRead);
                         channel.close();
                     }
                     if (publisher != null && code.equals("NetStream.Unpublish.Success")) {

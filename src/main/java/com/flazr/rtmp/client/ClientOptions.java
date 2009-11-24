@@ -54,8 +54,8 @@ public class ClientOptions {
     private Map<String, Object> params;
     private Object[] args;
     private byte[] clientVersionToUse;
-    private int start = -1;
-    private int length = -2;
+    private int start = -2;
+    private int length = -1;
     private byte[] swfHash;
     private int swfSize;
 
@@ -141,14 +141,14 @@ public class ClientOptions {
         options.addOption(new Option("help", "print this message"));
         options.addOption(OptionBuilder.withArgName("host").hasArg()
                 .withDescription("host name").create("host"));
-        options.addOption(OptionBuilder.withArgName("port").hasArg().withType(Integer.class)
+        options.addOption(OptionBuilder.withArgName("port").hasArg()
                 .withDescription("port number").create("port"));
         options.addOption(OptionBuilder.withArgName("app").hasArg()
                 .withDescription("app name").create("app"));
         options.addOption(OptionBuilder
-                .withArgName("start").hasArg().withType(Integer.class)
+                .withArgName("start").hasArg()
                 .withDescription("start position (milliseconds)").create("start"));
-        options.addOption(OptionBuilder.withArgName("length").hasArg().withType(Integer.class)
+        options.addOption(OptionBuilder.withArgName("length").hasArg()
                 .withDescription("length (milliseconds)").create("length"));
         options.addOption(new Option("rtmpe", "use RTMPE (encryption)"));
         options.addOption(new Option("live", "publish local file to server in 'live' mode"));
@@ -176,16 +176,16 @@ public class ClientOptions {
                 host = line.getOptionValue("host");
             }
             if(line.hasOption("port")) {
-                port = (Integer) line.getParsedOptionValue("port");
+                port = Integer.valueOf(line.getOptionValue("port"));
             }  
             if(line.hasOption("app")) {
                 appName = line.getOptionValue("app");
             }
             if(line.hasOption("start")) {
-                start = (Integer) line.getParsedOptionValue("start");
+                start = Integer.valueOf(line.getOptionValue("start"));
             }
             if(line.hasOption("length")) {
-                length = (Integer) line.getParsedOptionValue("length");
+                length = Integer.valueOf(line.getOptionValue("length"));
             }
             if(line.hasOption("rtmpe")) {
                 rtmpe = true;
@@ -305,12 +305,12 @@ public class ClientOptions {
         this.start = start;
     }
 
-    public int getDuration() {
+    public int getLength() {
         return length;
     }
 
-    public void setDuration(int duration) {
-        this.length = duration;
+    public void setLength(int length) {
+        this.length = length;
     }
 
     public String getHost() {

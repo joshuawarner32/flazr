@@ -79,6 +79,7 @@ public enum MessageType implements ValueToEnum.IntValue {
 
     public static RtmpMessage decode(RtmpHeader header, ChannelBuffer in) {
         switch(header.getMessageType()) {
+            case ABORT: return new Abort(header, in);
             case BYTES_READ: return new BytesRead(header, in);
             case CHUNK_SIZE: return new ChunkSize(header, in);
             case COMMAND_AMF0: return new CommandAmf0(header, in);

@@ -110,7 +110,7 @@ public abstract class Command extends AbstractMessage {
 
     public static Command play(int streamId, ClientOptions options) {
         Command command = new CommandAmf0("play", null,
-            options.getStreamName(), options.getStart(), options.getDuration());
+            options.getStreamName(), options.getStart(), options.getLength());
         command.header.setChannelId(8);
         command.header.setStreamId(streamId);        
         return command;
