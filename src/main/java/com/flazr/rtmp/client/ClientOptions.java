@@ -56,8 +56,19 @@ public class ClientOptions {
     private byte[] clientVersionToUse;
     private int start = -2;
     private int length = -1;
+    private int buffer = 300;
     private byte[] swfHash;
     private int swfSize;
+
+    public static void main(String[] args) {
+        ClientOptions co = new ClientOptions();
+        co.parseCli(new String[]{
+            "-buffer", "300",
+            "rtmp://localhost/vod/IronMan",
+            "test.flv"
+        });
+        RtmpClient.connect(co);
+    }
 
     protected ClientOptions() {}
 
@@ -150,10 +161,12 @@ public class ClientOptions {
                 .withDescription("start position (milliseconds)").create("start"));
         options.addOption(OptionBuilder.withArgName("length").hasArg()
                 .withDescription("length (milliseconds)").create("length"));
+        options.addOption(OptionBuilder.withArgName("buffer").hasArg()
+                .withDescription("buffer duration (milliseconds)").create("buffer"));
         options.addOption(new Option("rtmpe", "use RTMPE (encryption)"));
         options.addOption(new Option("live", "publish local file to server in 'live' mode"));
         options.addOption(new Option("record", "publish local file to server in 'record' mode"));
-        options.addOption(new Option("append", "publish local file to server in 'live' mode"));
+        options.addOption(new Option("append", "publish local file to server in 'append' mode"));
         options.addOption(OptionBuilder.withArgName("property=value").hasArgs(2)
                 .withValueSeparator().withDescription("add / override connection param").create("D"));
         options.addOption(OptionBuilder.withArgName("swf").hasArg()
@@ -169,7 +182,7 @@ public class ClientOptions {
             line = parser.parse(options, args);
             if(line.hasOption("help") || line.getArgs().length == 0) {
                 HelpFormatter formatter = new HelpFormatter();
-                formatter.printHelp("client [options] streamName [saveAs | fileToPublish]", options);
+                formatter.printHelp("client [options] streamNameOrUrl [saveAs | fileToPublish]", options);
                 return false;
             }
             if(line.hasOption("host")) {
@@ -186,6 +199,9 @@ public class ClientOptions {
             }
             if(line.hasOption("length")) {
                 length = Integer.valueOf(line.getOptionValue("length"));
+            }
+            if(line.hasOption("buffer")) {
+                buffer = Integer.valueOf(line.getOptionValue("buffer"));
             }
             if(line.hasOption("rtmpe")) {
                 rtmpe = true;
@@ -313,6 +329,14 @@ public class ClientOptions {
         this.length = length;
     }
 
+    public int getBuffer() {
+        return buffer;
+    }
+
+    public void setBuffer(int buffer) {
+        this.buffer = buffer;
+    }
+
     public String getHost() {
         return host;
     }
@@ -372,6 +396,7 @@ public class ClientOptions {
         }
         sb.append(" start: ").append(start);
         sb.append(" length: ").append(length);
+        sb.append(" buffer: ").append(buffer);
         sb.append(" params: ").append(params);
         sb.append(" args: ").append(Arrays.toString(args));
         if(swfHash != null) {

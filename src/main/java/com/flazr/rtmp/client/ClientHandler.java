@@ -20,7 +20,6 @@
 package com.flazr.rtmp.client;
 
 import com.flazr.io.flv.FlvWriter;
-import static com.flazr.rtmp.message.Control.Type.*;
 
 import com.flazr.rtmp.message.Control;
 import com.flazr.rtmp.RtmpMessage;
@@ -116,6 +115,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
         final Channel channel = me.getChannel();
         final RtmpMessage message = (RtmpMessage) me.getMessage();
         switch(message.getHeader().getMessageType()) {
+            case CHUNK_SIZE: // handled by decoder
+                break;
             case CONTROL:
                 Control control = (Control) message;
                 logger.debug("control: {}", control);
@@ -143,6 +144,9 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                             publisher.start(channel, options.getStart(),
                                     options.getLength(), new ChunkSize(4096));
                             return;
+                        }
+                        if(streamId !=0) {
+                            channel.write(Control.setBuffer(streamId, options.getBuffer()));
                         }
                         break;
                     default:
@@ -182,7 +186,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         writeCommandExpectingResult(channel, Command.createStream());
                     } else if(resultFor.equals("createStream")) {
                         streamId = ((Double) command.getArg(0)).intValue();
-                        logger.info("streamId to use: {}", streamId);
+                        logger.info("streamId to use: {}", streamId);                        
                         if(options.getPublishType() != null) { // TODO append, record
                             timer = new HashedWheelTimer();
                             final RtmpMessageReader reader = RtmpPublisher.getReader(options.getFileToPublish());
@@ -197,6 +201,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         } else {
                             writer = new FlvWriter(options.getStart(), options.getSaveAs());
                             channel.write(Command.play(streamId, options));
+                            channel.write(Control.setBuffer(streamId, 0));
                         }
                     } else {
                         logger.warn("un-handled server result for: {}", resultFor);
@@ -218,6 +223,14 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         future.addListener(ChannelFutureListener.CLOSE);
                         return;
                     }
+                } else if(name.equals("close")) {
+                    logger.info("server called close, closing channel");
+                    channel.close();
+                    return;
+                } else if(name.equals("_error")) {
+                    logger.error("closing channel, server resonded with error: {}", command);
+                    channel.close();
+                    return;
                 } else {
                     logger.warn("ignoring server command: {}", command);
                 }

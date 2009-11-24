@@ -22,7 +22,9 @@ package com.flazr.rtmp.message;
 import com.flazr.amf.Amf0Object;
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.rtmp.client.ClientOptions;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import org.jboss.netty.buffer.ChannelBuffer;
 
@@ -109,8 +111,18 @@ public abstract class Command extends AbstractMessage {
     }
 
     public static Command play(int streamId, ClientOptions options) {
-        Command command = new CommandAmf0("play", null,
-            options.getStreamName(), options.getStart(), options.getLength());
+        final List playArgs = new ArrayList();
+        playArgs.add(options.getStreamName());
+        if(options.getStart() != -2 || options.getArgs() != null) {
+            playArgs.add(options.getStart());
+        }
+        if(options.getLength() != -1 || options.getArgs() != null) {
+            playArgs.add(options.getLength());
+        }
+        if(options.getArgs() != null) {
+            playArgs.addAll(Arrays.asList(options.getArgs()));
+        }
+        Command command = new CommandAmf0("play", null, playArgs.toArray());
         command.header.setChannelId(8);
         command.header.setStreamId(streamId);        
         return command;

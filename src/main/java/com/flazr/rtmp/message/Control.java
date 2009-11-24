@@ -42,8 +42,8 @@ public class Control extends AbstractMessage {
         PING_RESPONSE(7),
         SWFV_REQUEST(26),
         SWFV_RESPONSE(27),
-        UNKNOWN1(31),
-        UNKNOWN2(32);
+        BUFFER_EMPTY(31),
+        BUFFER_FULL(32);
 
         private final int value;
 
@@ -124,12 +124,12 @@ public class Control extends AbstractMessage {
         return new Control(streamId, Type.STREAM_EOF);
     }
 
-    public static Control unknown1(int streamId) {
-        return new Control(streamId, Type.UNKNOWN1);
+    public static Control bufferEmpty(int streamId) {
+        return new Control(streamId, Type.BUFFER_EMPTY);
     }
 
-    public static Control unknown2(int streamId) {
-        return new Control(streamId, Type.UNKNOWN2);
+    public static Control bufferFull(int streamId) {
+        return new Control(streamId, Type.BUFFER_FULL);
     }
 
     public Type getType() {
@@ -170,8 +170,8 @@ public class Control extends AbstractMessage {
             case SWFV_RESPONSE:
                 out.writeBytes(bytes);
                 break;
-            case UNKNOWN1:
-            case UNKNOWN2:
+            case BUFFER_EMPTY:
+            case BUFFER_FULL:
                 out.writeInt(streamId);
                 break;
         }
@@ -203,8 +203,8 @@ public class Control extends AbstractMessage {
                 bytes = new byte[42];
                 in.readBytes(bytes);
                 break;
-            case UNKNOWN1:
-            case UNKNOWN2:
+            case BUFFER_EMPTY:
+            case BUFFER_FULL:
                 streamId = in.readInt();
                 break;
         }

@@ -108,6 +108,8 @@ public class ServerHandler extends SimpleChannelHandler {
             bytesReadLastSent = bytesRead;
         }
         switch(message.getHeader().getMessageType()) {
+            case CHUNK_SIZE: // handled by decoder
+                break;
             case COMMAND_AMF0:
             case COMMAND_AMF3:
                 final Command command = (Command) message;
