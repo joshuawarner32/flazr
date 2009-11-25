@@ -43,13 +43,13 @@ public abstract class RtmpPublisher {
     private final Timer timer;
 
     private int streamId;
-    private long startTime;
+    private long startTime;    
     private long seekTime;
     private long timePosition;
     private int currentConversationId;    
     private int playLength = -1;
     private boolean paused;
-    private int bufferDuration = 5000;
+    private int bufferDuration;
 
     public static class Event {
 
@@ -84,6 +84,10 @@ public abstract class RtmpPublisher {
         }
     }
 
+    public int getStreamId() {
+        return streamId;
+    }
+
     public RtmpReader getReader() {
         return reader;
     }
@@ -100,10 +104,10 @@ public abstract class RtmpPublisher {
         this.bufferDuration = bufferDuration;
     }
 
-    public boolean handle(final MessageEvent me) {
+    public boolean handle(final MessageEvent me) {        
         if(me.getMessage() instanceof Event) {
             final Event pe = (Event) me.getMessage();
-            if(pe.getConversationId() != currentConversationId) {
+            if(pe.conversationId != currentConversationId) {
                 logger.debug("stopping obsolete conversation id: {}, current: {}",
                         pe.getConversationId(), currentConversationId);
                 return true;
@@ -167,7 +171,7 @@ public abstract class RtmpPublisher {
         }
         final RtmpMessage message = reader.next();
         final RtmpHeader header = message.getHeader();
-        final double compensationFactor = clientBuffer / bufferDuration;
+        final double compensationFactor = clientBuffer / (bufferDuration + TIMER_TICK_SIZE);
         final long delay = (long) ((header.getTime() - timePosition) * compensationFactor);
         timePosition = header.getTime();
         header.setStreamId(streamId);
@@ -179,7 +183,7 @@ public abstract class RtmpPublisher {
                 final long completedIn = System.currentTimeMillis() - writeTime;
                 if(completedIn > 2000) {
                     logger.warn("channel busy? time taken to write last message: {}", completedIn);
-                }
+                }                
                 final long delayToUse = delay - completedIn;
                 if(delayToUse > TIMER_TICK_SIZE) {
                     timer.newTimeout(new TimerTask() {

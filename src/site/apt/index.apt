@@ -8,5 +8,26 @@ Flazr
     
     Documentation and instructions on how to use Flazr can be found here: 
     {{http://apps.sourceforge.net/mediawiki/flazr}}    
+   
+* Features
+    
+    * RTMP Streaming Server
+    
+    * Video On Demand, seek and pause support        
+    
+    * Publish / Broadcast live streams  
+    
+    * FLV, F4V / MP4 / H.264 support
+    
+    * RTMP Client: publish from local file-system to remote server
+    
+    * Load / stress testing of even third-party RTMP servers
+    
+    * Compact, small footprint (less than 1.5 MB download)
+    
+    * Minimal dependencies, ideal for embedding in other applications
+    
+    * Easy installation, just download and run
+    
     
 

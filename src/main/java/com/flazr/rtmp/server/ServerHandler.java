@@ -68,8 +68,7 @@ public class ServerHandler extends SimpleChannelHandler {
 
     private RtmpPublisher publisher;
     private RtmpReader reader;
-    private ServerStream broadcastStream;
-    private ChannelGroup subscribers;
+    private ServerStream broadcastStream;    
 
     @Override
     public void channelOpen(final ChannelHandlerContext ctx, final ChannelStateEvent e) {
@@ -117,12 +116,14 @@ public class ServerHandler extends SimpleChannelHandler {
                 final Control control = (Control) message;
                 switch(control.getType()) {
                     case SET_BUFFER:
+                        logger.debug("received set buffer: {}", control);
                         bufferDuration = control.getBufferLength();
                         if(publisher != null) {
                             publisher.setBufferDuration(bufferDuration);
                         }
+                        break;
                     default:
-                        logger.warn("ignoring control: {}", control);
+                        logger.info("ignored control: {}", control);
                 }
                 break;
             case COMMAND_AMF0:

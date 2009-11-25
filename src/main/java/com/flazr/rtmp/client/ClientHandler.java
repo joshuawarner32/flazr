@@ -69,7 +69,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
 
     private Timer timer;
     private RtmpPublisher publisher;
-    private int streamId;
+    private int streamId;    
 
     public void setSwfvBytes(byte[] swfvBytes) {
         this.swfvBytes = swfvBytes;        

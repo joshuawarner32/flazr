@@ -105,10 +105,10 @@
             <map from="${basedir}/target/flazr/conf" to="conf"/>
             <map from="${basedir}/target/flazr/lib" to="lib"/>            
         </pathconvert>
-        <concat destfile="target/flazr/client.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-client com.flazr.rtmp.client.RtmpClient $*</concat>
-        <concat destfile="target/flazr/client.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-client com.flazr.rtmp.client.RtmpClient %*</concat>
-        <concat destfile="target/flazr/server-start.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-server com.flazr.rtmp.server.RtmpServer $*</concat>
-        <concat destfile="target/flazr/server-start.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-server com.flazr.rtmp.server.RtmpServer %*</concat>
+        <concat destfile="target/flazr/client.sh">java -Xmx512m -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-client com.flazr.rtmp.client.RtmpClient $*</concat>
+        <concat destfile="target/flazr/client.bat">java -Xmx512m -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-client com.flazr.rtmp.client.RtmpClient %*</concat>
+        <concat destfile="target/flazr/server-start.sh">java -Xmx128m -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-server com.flazr.rtmp.server.RtmpServer $*</concat>
+        <concat destfile="target/flazr/server-start.bat">java -Xmx128m -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-server com.flazr.rtmp.server.RtmpServer %*</concat>
         <concat destfile="target/flazr/server-stop.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-stop com.flazr.rtmp.server.ServerStop $*</concat>
         <concat destfile="target/flazr/server-stop.bat">java -cp ${lib.jars.path.windows} -Dflazr.log.suffix=-stop com.flazr.rtmp.server.ServerStop %*</concat>
         <concat destfile="target/flazr/proxy-start.sh">java -cp ${lib.jars.path.unix} -Dflazr.log.suffix=-proxy com.flazr.rtmp.proxy.RtmpProxy $*</concat>
@@ -120,9 +120,9 @@
         </zip>      
     </target>
 
-    <target name="dist-jar-scp" depends="dist">
+    <target name="dist-jar-scp">
         <input message="Please enter password:" addproperty="password"/>
-        <scp file="target/flazr/lib/flazr-${flazr.version}.jar"
+        <scp file="target/flazr-0.7-RC2.zip"
             todir="ptrthomas@web.sourceforge.net:/home/groups/f/fl/flazr/htdocs/files"
             password="${password}" trust="true"/>
     </target>

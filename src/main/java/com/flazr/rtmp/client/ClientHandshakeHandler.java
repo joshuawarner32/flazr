@@ -19,7 +19,8 @@
 
 package com.flazr.rtmp.client;
 
-import com.flazr.rtmp.*;
+import com.flazr.rtmp.RtmpHandshake;
+import com.flazr.rtmp.RtmpPublisher;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelDownstreamHandler;
