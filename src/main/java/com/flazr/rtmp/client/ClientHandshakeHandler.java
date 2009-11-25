@@ -78,7 +78,7 @@ public class ClientHandshakeHandler extends FrameDecoder implements ChannelDowns
             return;
         }
         final MessageEvent me = (MessageEvent) ce;
-        if(me.getMessage() instanceof RtmpPublisherEvent) {
+        if(me.getMessage() instanceof RtmpPublisher.Event) {
             super.handleUpstream(ctx, ce);
             return;
         }

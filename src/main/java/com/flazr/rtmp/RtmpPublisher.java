@@ -51,6 +51,20 @@ public abstract class RtmpPublisher {
     private boolean paused;
     private int bufferDuration = 5000;
 
+    public static class Event {
+
+        private final int conversationId;
+
+        public Event(final int conversationId) {
+            this.conversationId = conversationId;
+        }
+
+        public int getConversationId() {
+            return conversationId;
+        }
+
+    }
+
     public RtmpPublisher(RtmpReader reader, Timer timer, int streamId, int bufferDuration) {
         TIMER_TICK_SIZE = RtmpConfig.TIMER_TICK_SIZE;
         this.reader = reader;
@@ -87,11 +101,11 @@ public abstract class RtmpPublisher {
     }
 
     public boolean handle(final MessageEvent me) {
-        if(me.getMessage() instanceof RtmpPublisherEvent) {
-            final RtmpPublisherEvent rse = (RtmpPublisherEvent) me.getMessage();
-            if(rse.getConversationId() != currentConversationId) {
+        if(me.getMessage() instanceof Event) {
+            final Event pe = (Event) me.getMessage();
+            if(pe.getConversationId() != currentConversationId) {
                 logger.debug("stopping obsolete conversation id: {}, current: {}",
-                        rse.getConversationId(), currentConversationId);
+                        pe.getConversationId(), currentConversationId);
                 return true;
             }
             write(me.getChannel());
@@ -157,7 +171,7 @@ public abstract class RtmpPublisher {
         final long delay = (long) ((header.getTime() - timePosition) * compensationFactor);
         timePosition = header.getTime();
         header.setStreamId(streamId);
-        final RtmpPublisherEvent readyForNext = new RtmpPublisherEvent(currentConversationId);
+        final Event readyForNext = new Event(currentConversationId);
         final long writeTime = System.currentTimeMillis();
         final ChannelFuture future = channel.write(message);
         future.addListener(new ChannelFutureListener() {
