@@ -21,11 +21,8 @@ package com.flazr.rtmp.message;
 
 import com.flazr.rtmp.RtmpHeader;
 import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
 
-public class Aggregate extends AbstractMessage {
-
-    private ChannelBuffer data;
+public class Aggregate extends DataMessage {
 
     public Aggregate(RtmpHeader header, ChannelBuffer in) {
         super(header, in);
@@ -44,18 +41,8 @@ public class Aggregate extends AbstractMessage {
     }
 
     @Override
-    public ChannelBuffer encode() {
-        return data;
-    }
-
-    @Override
-    public void decode(ChannelBuffer in) {
-        data = in;
-    }
-
-    @Override
-    public String toString() {
-        return super.toString() + ChannelBuffers.hexDump(data);
+    public boolean isConfig() {
+        return false;
     }
 
 }

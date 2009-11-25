@@ -68,10 +68,7 @@ public class ServerHandshakeHandler extends FrameDecoder implements ChannelDowns
                 channel.getPipeline().remove(this);
             }
         }
-        if(in.readable()) {
-            Channels.fireMessageReceived(channel, in);
-        }
-        return null;
+        return in;
     }
 
     @Override

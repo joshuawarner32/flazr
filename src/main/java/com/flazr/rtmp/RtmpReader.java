@@ -22,7 +22,7 @@ package com.flazr.rtmp;
 import com.flazr.rtmp.message.Metadata;
 import java.util.Iterator;
 
-public interface RtmpMessageReader extends Iterator<RtmpMessage> {
+public interface RtmpReader extends Iterator<RtmpMessage> {
 
     Metadata getMetadata();
 

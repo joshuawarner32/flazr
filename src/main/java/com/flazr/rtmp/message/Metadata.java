@@ -44,6 +44,43 @@ public abstract class Metadata extends AbstractMessage {
         super(header, in);
     }
 
+    public Object getData(int index) {
+        if(data == null || data.length < index + 1) {
+            return null;
+        }
+        return data[index];
+    }
+
+    public double getDuration() {
+        if(data == null || data.length == 0) {
+            return -1;
+        }
+        final Map<String, Object> map = (Map<String, Object>) data[0];
+        if(map == null) {
+            return -1;
+        }
+        final Object o = map.get("duration");
+        if(o == null) {
+            return -1;
+        }
+        return ((Double) o).longValue();
+    }
+
+    public void setDuration(final double duration) {
+        if(data == null || data.length == 0) {
+            data = new Object[] {map(pair("duration", duration))};
+        }
+        final Object meta = data[0];
+        final Map<String, Object> map = (Map) meta;
+        if(map == null) {
+            data[0] = map(pair("duration", duration));
+            return;
+        }
+        map.put("duration", duration);
+    }
+
+
+
     //==========================================================================
 
     public static Metadata onPlayStatus(double duration, double bytes) {

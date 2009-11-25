@@ -22,7 +22,7 @@ package com.flazr.io.f4v;
 import com.flazr.io.flv.FlvAtom;
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.rtmp.RtmpMessage;
-import com.flazr.rtmp.RtmpMessageReader;
+import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.message.Aggregate;
 import com.flazr.rtmp.message.Audio;
 import com.flazr.rtmp.message.Metadata;
@@ -38,7 +38,7 @@ import org.jboss.netty.buffer.ChannelBuffers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class F4vReader implements RtmpMessageReader {
+public class F4vReader implements RtmpReader {
 
     private static final Logger logger = LoggerFactory.getLogger(F4vReader.class);
 
@@ -206,7 +206,7 @@ public class F4vReader implements RtmpMessageReader {
     }    
 
     public static void main(String[] args) {
-        F4vReader reader = new F4vReader("home/apps/vod/bacchikoi.avi");
+        F4vReader reader = new F4vReader("home/apps/vod/sample1_150kbps.f4v");
         while(reader.hasNext()) {
             logger.debug("read: {}", reader.next());
         }

@@ -37,9 +37,9 @@ public abstract class RtmpPublisher {
 
     private static final Logger logger = LoggerFactory.getLogger(RtmpPublisher.class);
     
-    private final static int TIMER_TICK_SIZE = 100;
+    private final int TIMER_TICK_SIZE;
 
-    private final RtmpMessageReader reader;
+    private final RtmpReader reader;
     private final Timer timer;
 
     private int streamId;
@@ -49,16 +49,18 @@ public abstract class RtmpPublisher {
     private int currentConversationId;    
     private int playLength = -1;
     private boolean paused;
-    private int targetBufferDuration = 5000;
+    private int bufferDuration = 5000;
 
-    public RtmpPublisher(RtmpMessageReader reader, Timer timer, int streamId) {
+    public RtmpPublisher(RtmpReader reader, Timer timer, int streamId, int bufferDuration) {
+        TIMER_TICK_SIZE = RtmpConfig.TIMER_TICK_SIZE;
         this.reader = reader;
         this.timer = timer;
-        this.streamId = streamId;        
+        this.streamId = streamId;
+        this.bufferDuration = bufferDuration;
         logger.debug("publisher init, streamId: {}", streamId);
     }
 
-    public static RtmpMessageReader getReader(String path) {
+    public static RtmpReader getReader(String path) {
         if(path.toLowerCase().startsWith("mp4:")) {
             return new F4vReader(path.substring(4));
         } else if (path.toLowerCase().endsWith(".f4v")) {
@@ -68,11 +70,7 @@ public abstract class RtmpPublisher {
         }
     }
 
-    public void setTargetBufferDuration(int targetBufferDuration) {
-        this.targetBufferDuration = targetBufferDuration;
-    }
-
-    public RtmpMessageReader getReader() {
+    public RtmpReader getReader() {
         return reader;
     }
 
@@ -82,6 +80,10 @@ public abstract class RtmpPublisher {
 
     public boolean isPaused() {
         return paused;
+    }
+
+    public void setBufferDuration(int bufferDuration) {
+        this.bufferDuration = bufferDuration;
     }
 
     public boolean handle(final MessageEvent me) {
@@ -106,7 +108,7 @@ public abstract class RtmpPublisher {
     public void start(final Channel channel, final int seekTimeRequested, final RtmpMessage ... messages) {
         paused = false;
         currentConversationId++;
-        startTime = System.currentTimeMillis();
+        startTime = System.currentTimeMillis();        
         if(seekTimeRequested >= 0) {
             seekTime = reader.seek(seekTimeRequested);
         } else {
@@ -133,6 +135,10 @@ public abstract class RtmpPublisher {
     }
 
     public void write(final Channel channel) {
+        if (!reader.hasNext() || playLength >= 0 && timePosition > (seekTime + playLength)) {
+            stop(channel);
+            return;
+        }
         final long elapsedTime = System.currentTimeMillis() - startTime;
         final long elapsedTimePlusSeek = elapsedTime + seekTime;
         final double clientBuffer = timePosition - elapsedTimePlusSeek;
@@ -140,18 +146,14 @@ public abstract class RtmpPublisher {
             logger.debug("elapsed: {}, streamed: {}, buffer: {}",
                     new Object[]{elapsedTimePlusSeek, timePosition, clientBuffer});
         }
-        if(clientBuffer > 100 && targetBufferDuration > 1000) { // TODO cleanup
+        if(clientBuffer > TIMER_TICK_SIZE) { // TODO cleanup
             reader.setAggregateDuration((int) clientBuffer);
         } else {
             reader.setAggregateDuration(0);
         }
-        if (!reader.hasNext() || playLength >= 0 && timePosition > (seekTime + playLength)) {
-            stop(channel);
-            return;
-        }
         final RtmpMessage message = reader.next();
         final RtmpHeader header = message.getHeader();
-        final double compensationFactor = clientBuffer / targetBufferDuration;
+        final double compensationFactor = clientBuffer / bufferDuration;
         final long delay = (long) ((header.getTime() - timePosition) * compensationFactor);
         timePosition = header.getTime();
         header.setStreamId(streamId);
@@ -159,9 +161,9 @@ public abstract class RtmpPublisher {
         final long writeTime = System.currentTimeMillis();
         final ChannelFuture future = channel.write(message);
         future.addListener(new ChannelFutureListener() {
-            @Override public void operationComplete(ChannelFuture cf) {
+            @Override public void operationComplete(final ChannelFuture cf) {
                 final long completedIn = System.currentTimeMillis() - writeTime;
-                if(completedIn > 1000) {
+                if(completedIn > 2000) {
                     logger.warn("channel busy? time taken to write last message: {}", completedIn);
                 }
                 final long delayToUse = delay - completedIn;

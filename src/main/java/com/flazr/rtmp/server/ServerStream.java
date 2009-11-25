@@ -18,7 +18,10 @@
  */
 package com.flazr.rtmp.server;
 
+import com.flazr.rtmp.RtmpMessage;
 import com.flazr.util.Utils;
+import java.util.ArrayList;
+import java.util.List;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
 
@@ -43,6 +46,7 @@ public class ServerStream {
     private final String name;
     private final PublishType publishType;
     private final ChannelGroup subscribers;
+    private final List<RtmpMessage> configMessages;
 
     public ServerStream(final String name) {
         this(name, null);
@@ -51,11 +55,13 @@ public class ServerStream {
     public ServerStream(final String rawName, final String typeString) {
         this.name = Utils.trimSlashes(rawName).toLowerCase();
         if(typeString != null) {
-            this.publishType = PublishType.parse(typeString);
+            this.publishType = PublishType.parse(typeString); // TODO record, append
             subscribers = new DefaultChannelGroup(name);
+            configMessages = new ArrayList<RtmpMessage>();
         } else {
             this.publishType = null;
             subscribers = null;
+            configMessages = null;
         }        
     }
 
@@ -65,6 +71,18 @@ public class ServerStream {
 
     public ChannelGroup getSubscribers() {
         return subscribers;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public List<RtmpMessage> getConfigMessages() {
+        return configMessages;
+    }
+
+    public void addConfigMessage(final RtmpMessage message) {
+        configMessages.add(message);
     }
 
 }

@@ -444,15 +444,15 @@ public class ClientOptions {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("[host: ").append(host);
-        sb.append(" port: ").append(port);
-        sb.append(" appName: ").append(appName);
-        sb.append(" streamName: ").append(streamName);
-        sb.append(" saveAs: ").append(saveAs);
-        sb.append(" rtmpe: ").append(rtmpe);
+        sb.append("[host: '").append(host);
+        sb.append("' port: ").append(port);
+        sb.append(" appName: '").append(appName);
+        sb.append("' streamName: '").append(streamName);
+        sb.append("' saveAs: '").append(saveAs);
+        sb.append("' rtmpe: ").append(rtmpe);
         sb.append(" publish: ").append(publishType);
         if(clientVersionToUse != null) {
-            sb.append(" clientVersionToUse: ").append(Utils.toHex(clientVersionToUse));
+            sb.append(" clientVersionToUse: '").append(Utils.toHex(clientVersionToUse)).append('\'');
         }
         sb.append(" start: ").append(start);
         sb.append(" length: ").append(length);
@@ -460,8 +460,8 @@ public class ClientOptions {
         sb.append(" params: ").append(params);
         sb.append(" args: ").append(Arrays.toString(args));
         if(swfHash != null) {
-            sb.append(" swfHash: ").append(Utils.toHex(swfHash));
-            sb.append(" swfSize: ").append(swfSize);
+            sb.append(" swfHash: '").append(Utils.toHex(swfHash));
+            sb.append("' swfSize: ").append(swfSize).append('\'');
         }
         sb.append(" load: ").append(load);
         sb.append(" loop: ").append(loop);

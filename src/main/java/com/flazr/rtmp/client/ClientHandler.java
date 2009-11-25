@@ -21,9 +21,10 @@ package com.flazr.rtmp.client;
 
 import com.flazr.io.flv.FlvWriter;
 
+import com.flazr.rtmp.LoopedReader;
 import com.flazr.rtmp.message.Control;
 import com.flazr.rtmp.RtmpMessage;
-import com.flazr.rtmp.RtmpMessageReader;
+import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.RtmpPublisher;
 import com.flazr.rtmp.message.BytesRead;
 import com.flazr.rtmp.message.ChunkSize;
@@ -197,13 +198,15 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         logger.debug("streamId to use: {}", streamId);
                         if(options.getPublishType() != null) { // TODO append, record
                             timer = new HashedWheelTimer();
-                            final RtmpMessageReader reader = RtmpPublisher.getReader(options.getFileToPublish());
-                            publisher = new RtmpPublisher(reader, timer, streamId) {
+                            RtmpReader reader = RtmpPublisher.getReader(options.getFileToPublish());
+                            if(options.getLoop() > 1) {
+                                reader = new LoopedReader(reader, options.getLoop());
+                            }
+                            publisher = new RtmpPublisher(reader, timer, streamId, options.getBuffer()) {
                                 @Override protected RtmpMessage[] getStopMessages(long timePosition) {
                                     return new RtmpMessage[]{Command.unpublish(streamId)};
                                 }
                             };                            
-                            publisher.setTargetBufferDuration(200); // TODO cleanup
                             channel.write(Command.publish(streamId, options));
                             return;
                         } else {

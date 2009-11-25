@@ -48,31 +48,23 @@ public class RtmpClient {
         }
         logger.info("load testing mode, no. of connections to create: {}", count);
         options.setSaveAs(null);
-        final Executor executor = Executors.newFixedThreadPool(options.getThreads());
-        final ChannelFactory factory = new NioClientSocketChannelFactory(executor, executor);
-        final ClientBootstrap bootstrap = new ClientBootstrap(factory);
-        bootstrap.setPipelineFactory(new ClientPipelineFactory(options));
-        bootstrap.setOption("tcpNoDelay" , true);
-        bootstrap.setOption("keepAlive", true);
+        final Executor executor = Executors.newFixedThreadPool(options.getThreads());        
+        final ClientBootstrap bootstrap = getBootstrap(executor, options);
         for(int i = 0; i < count; i++) {
             final int index = i + 1;
             executor.execute(new Runnable() {
                 @Override public void run() {
-                    logger.info(">> client connection #{}", index);
+                    logger.info(">> spawning connection #{}", index);
                     bootstrap.connect(new InetSocketAddress(options.getHost(), options.getPort()));
-                    logger.info("<< client connection #{}", index);
+                    logger.info("<< spawned connection #{}", index);
                 }
             });
         }
+        // TODO graceful shutdown
     }
 
-    public static void connect(final ClientOptions options) { 
-        final Executor executor = Executors.newCachedThreadPool();
-        final ChannelFactory factory = new NioClientSocketChannelFactory(executor, executor);
-        final ClientBootstrap bootstrap = new ClientBootstrap(factory);
-        bootstrap.setPipelineFactory(new ClientPipelineFactory(options));
-        bootstrap.setOption("tcpNoDelay" , true);
-        bootstrap.setOption("keepAlive", true);
+    public static void connect(final ClientOptions options) {  
+        final ClientBootstrap bootstrap = getBootstrap(Executors.newCachedThreadPool(), options);
         final ChannelFuture future = bootstrap.connect(new InetSocketAddress(options.getHost(), options.getPort()));
         future.awaitUninterruptibly();
         if(!future.isSuccess()) {
@@ -80,7 +72,16 @@ public class RtmpClient {
             logger.error("error creating client connection: {}", future.getCause().getMessage());
         }
         future.getChannel().getCloseFuture().awaitUninterruptibly(); 
-        factory.releaseExternalResources();
+        bootstrap.getFactory().releaseExternalResources();
+    }
+
+    private static ClientBootstrap getBootstrap(final Executor executor, final ClientOptions options) {
+        final ChannelFactory factory = new NioClientSocketChannelFactory(executor, executor);
+        final ClientBootstrap bootstrap = new ClientBootstrap(factory);
+        bootstrap.setPipelineFactory(new ClientPipelineFactory(options));
+        bootstrap.setOption("tcpNoDelay" , true);
+        bootstrap.setOption("keepAlive", true);
+        return bootstrap;
     }
 
 }

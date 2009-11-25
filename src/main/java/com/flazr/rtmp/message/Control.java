@@ -140,6 +140,10 @@ public class Control extends AbstractMessage {
         return time;
     }
 
+    public int getBufferLength() {
+        return bufferLength;
+    }
+
     @Override
     public ChannelBuffer encode() {
         final int size;

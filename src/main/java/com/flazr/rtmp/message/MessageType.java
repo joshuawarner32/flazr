@@ -96,7 +96,7 @@ public enum MessageType implements ValueToEnum.IntValue {
 
     private static final ValueToEnum<MessageType> converter = new ValueToEnum<MessageType>(MessageType.values());
 
-    public static MessageType valueToEnum(int value) {
+    public static MessageType valueToEnum(final int value) {
         return converter.valueToEnum(value);
     }
 

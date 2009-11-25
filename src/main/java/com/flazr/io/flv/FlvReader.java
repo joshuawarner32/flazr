@@ -20,7 +20,7 @@
 package com.flazr.io.flv;
 
 import com.flazr.rtmp.RtmpMessage;
-import com.flazr.rtmp.RtmpMessageReader;
+import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.message.Aggregate;
 import com.flazr.rtmp.message.MessageType;
 import com.flazr.rtmp.message.Metadata;
@@ -33,7 +33,7 @@ import org.jboss.netty.buffer.ChannelBuffers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FlvReader implements RtmpMessageReader {
+public class FlvReader implements RtmpReader {
 
     private static final Logger logger = LoggerFactory.getLogger(FlvReader.class);
     
@@ -70,7 +70,7 @@ public class FlvReader implements RtmpMessageReader {
 
     @Override
     public RtmpMessage[] getStartMessages() {
-        return new RtmpMessage[] {getMetadata()};
+        return new RtmpMessage[] { metadata };
     }
 
     @Override
@@ -104,6 +104,14 @@ public class FlvReader implements RtmpMessageReader {
     @Override
     public long seek(final long time) {
         logger.debug("trying to seek to: {}", time);
+        if(time == 0) { // special case
+            try {
+                in.position(mediaStartPosition);
+                return 0;
+            } catch(Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
         final long start = getTimePosition();        
         if(time > start) {
             while(hasNext()) {
@@ -230,7 +238,7 @@ public class FlvReader implements RtmpMessageReader {
     }
 
     public static void main(String[] args) {
-        FlvReader reader = new FlvReader("IronMan.flv");
+        FlvReader reader = new FlvReader("home/apps/vod/avatar-vp6.flv");
         while(reader.hasNext()) {
             RtmpMessage message = reader.next();
             ChannelBuffer data = message.encode();

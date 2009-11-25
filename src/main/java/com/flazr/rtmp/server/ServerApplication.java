@@ -22,7 +22,7 @@ package com.flazr.rtmp.server;
 import com.flazr.io.f4v.F4vReader;
 import com.flazr.io.flv.FlvReader;
 import com.flazr.rtmp.RtmpConfig;
-import com.flazr.rtmp.RtmpMessageReader;
+import com.flazr.rtmp.RtmpReader;
 import com.flazr.util.Utils;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,14 +38,14 @@ public class ServerApplication {
 
     public ServerApplication(final String rawName) {
         this.name = cleanName(rawName);        
-        streams = new ConcurrentHashMap<String, ServerStream>();
+        streams = new ConcurrentHashMap<String, ServerStream>();        
     }
 
     public String getName() {
         return name;
-    }   
+    }
 
-    public RtmpMessageReader getReader(final String rawName) {
+    public RtmpReader getReader(final String rawName) {
         final String streamName = Utils.trimSlashes(rawName);
         final String path = RtmpConfig.SERVER_HOME_DIR + "/apps/" + name + "/";
         final String readerPlayName;

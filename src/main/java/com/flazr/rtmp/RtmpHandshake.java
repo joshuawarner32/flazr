@@ -207,9 +207,12 @@ public class RtmpHandshake {
 
     private void cipherUpdate(final ChannelBuffer in, final Cipher cipher) {
         final int size = in.readableBytes();
+        if(size == 0) {
+            return;
+        }
         final int position = in.readerIndex();
         final byte[] bytes = new byte[size];
-        in.getBytes(position, bytes);
+        in.getBytes(position, bytes);        
         in.setBytes(position, cipher.update(bytes));
     }
 

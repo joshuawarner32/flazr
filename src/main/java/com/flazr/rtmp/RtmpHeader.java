@@ -149,6 +149,11 @@ public class RtmpHeader {
         }
     }
 
+    public boolean isMetadata() {
+        return messageType == MessageType.METADATA_AMF0
+                || messageType == MessageType.METADATA_AMF3;
+    }
+
     public boolean isAggregate() {
         return messageType == MessageType.AGGREGATE;
     }
