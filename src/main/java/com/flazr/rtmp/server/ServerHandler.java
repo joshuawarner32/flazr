@@ -351,7 +351,9 @@ public class ServerHandler extends SimpleChannelHandler {
             channel.write(Control.streamBegin(streamId));
             final ChannelGroup subscribers = subscriberStream.getSubscribers();
             subscribers.write(Command.publishNotify(streamId));
-            subscribers.write(Video.empty());
+            subscribers.write(Metadata.rtmpSampleAccess());
+            subscribers.write(Audio.empty());
+            subscribers.write(Metadata.dataStart());
         } else { // un-publish
             final boolean publish = (Boolean) command.getArg(0);
             if(!publish) {
