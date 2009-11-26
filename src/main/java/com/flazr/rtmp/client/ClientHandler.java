@@ -45,8 +45,6 @@ import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
-import org.jboss.netty.util.HashedWheelTimer;
-import org.jboss.netty.util.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,8 +64,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     private long bytesRead;
     private long bytesReadLastSent;    
     private int bytesWrittenWindow = 2500000;
-
-    private Timer timer;
+    
     private RtmpPublisher publisher;
     private int streamId;    
 
@@ -104,14 +101,11 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
         logger.info("channel closed: {}", e);
-        if(timer != null) {
-            timer.stop();
-        }
         if(writer != null) {
             writer.close();
         }
         if(publisher != null) {
-            publisher.getReader().close();
+            publisher.close();
         }
         super.channelClosed(ctx, e);
     }
@@ -196,13 +190,12 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                     } else if(resultFor.equals("createStream")) {
                         streamId = ((Double) command.getArg(0)).intValue();
                         logger.debug("streamId to use: {}", streamId);
-                        if(options.getPublishType() != null) { // TODO append, record
-                            timer = new HashedWheelTimer();
+                        if(options.getPublishType() != null) { // TODO append, record                            
                             RtmpReader reader = RtmpPublisher.getReader(options.getFileToPublish());
                             if(options.getLoop() > 1) {
                                 reader = new LoopedReader(reader, options.getLoop());
                             }
-                            publisher = new RtmpPublisher(reader, timer, streamId, options.getBuffer()) {
+                            publisher = new RtmpPublisher(reader, streamId, options.getBuffer(), false) {
                                 @Override protected RtmpMessage[] getStopMessages(long timePosition) {
                                     return new RtmpMessage[]{Command.unpublish(streamId)};
                                 }
@@ -227,6 +220,13 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                             || code.equals("NetStream.Play.StreamNotFound")) {
                         logger.info("disconnecting, code: {}, bytes read: {}", code, bytesRead);
                         channel.close();
+                        return;
+                    }
+                    if(code.equals("NetStream.Publish.Start")
+                            && publisher != null && !publisher.isStarted()) {
+                            publisher.start(channel, options.getStart(),
+                                    options.getLength(), new ChunkSize(4096));
+                        return;
                     }
                     if (publisher != null && code.equals("NetStream.Unpublish.Success")) {
                         logger.info("unpublish success, closing channel");
@@ -264,7 +264,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
             default:
             logger.info("ignoring rtmp message: {}", message);
         }
-        if(publisher != null) {
+        if(publisher != null && publisher.isStarted()) { // TODO better state machine
             publisher.write(channel);
         }
     }

@@ -40,18 +40,19 @@ import org.slf4j.LoggerFactory;
 public class RtmpServer {
 
     private static final Logger logger = LoggerFactory.getLogger(RtmpServer.class);
+
+    static {
+        RtmpConfig.configureServer();
+        CHANNELS = new DefaultChannelGroup("server-channels");
+        APPLICATIONS = new ConcurrentHashMap<String, ServerApplication>();
+        TIMER = new HashedWheelTimer(RtmpConfig.TIMER_TICK_SIZE, TimeUnit.MILLISECONDS);
+    }
     
-    protected static final ChannelGroup CHANNELS = new DefaultChannelGroup("server-channels");
-
-    protected static final Map<String, ServerApplication> APPLICATIONS =
-            new ConcurrentHashMap<String, ServerApplication>();
-
-    protected static final Timer TIMER =
-            new HashedWheelTimer(RtmpConfig.TIMER_TICK_SIZE, TimeUnit.MILLISECONDS);    
+    protected static final ChannelGroup CHANNELS;
+    protected static final Map<String, ServerApplication> APPLICATIONS;
+    public static final Timer TIMER;
 
     public static void main(String[] args) throws Exception {
-
-        RtmpConfig.configureServer();
 
         final ChannelFactory factory = new NioServerSocketChannelFactory(
                 Executors.newCachedThreadPool(),
@@ -68,7 +69,7 @@ public class RtmpServer {
         logger.info("server started, listening on: {}", socketAddress);
 
         final Thread monitor = new StopMonitor(RtmpConfig.SERVER_STOP_PORT);
-        monitor.start();
+        monitor.start();        
         monitor.join();
 
         TIMER.stop();

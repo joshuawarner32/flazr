@@ -77,19 +77,31 @@ public class ServerApplication {
         return app;
     }
 
-    public ServerStream createStream(final String rawName, final String type) {
-        final String streamName = cleanName(rawName);
-        final ServerStream stream = new ServerStream(streamName, type);
-        streams.put(streamName, stream);
-        return stream;
+    public ServerStream getStream(final String rawName) {        
+        return getStream(rawName, null);
     }
 
-    public ServerStream getStream(final String rawName) {        
-        return streams.get(cleanName(rawName));
+    public ServerStream getStream(final String rawName, final String type) {
+        final String streamName = cleanName(rawName);
+        ServerStream stream = streams.get(streamName);
+        if(stream == null) {
+            stream = new ServerStream(streamName, type);
+            streams.put(streamName, stream);
+        }
+        return stream;
     }
 
     private static String cleanName(final String raw) {
         return Utils.trimSlashes(raw).toLowerCase();
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("[name: '").append(name);
+        sb.append("' streams: ").append(streams);
+        sb.append(']');
+        return sb.toString();
     }
 
 }

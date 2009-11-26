@@ -66,6 +66,45 @@ public abstract class Command extends AbstractMessage {
     }
 
     //==========================================================================
+    
+    public static enum OnStatus {
+        
+        ERROR, STATUS, WARNING;        
+        
+        public static OnStatus parse(final String raw) {
+            return OnStatus.valueOf(raw.substring(1).toUpperCase());
+        }
+
+        public String asString() {
+            return "_" + this.name().toLowerCase();
+        }
+        
+    }
+
+    private static Amf0Object onStatus(final OnStatus level, final String code,
+            final String description, final String details, final Pair ... pairs) {
+        final Amf0Object object = object(
+            pair("level", level.asString()),
+            pair("code", code));
+        if(description != null) {
+            object.put("description", description);
+        }
+        if(details != null) {
+            object.put("details", details);
+        }
+        return object(object, pairs);
+    }
+
+    private static Amf0Object onStatus(final OnStatus level, final String code,
+            final String description, final Pair ... pairs) {
+        return onStatus(level, code, description, null, pairs);
+    }
+
+    public static Amf0Object onStatus(final OnStatus level, final String code, final Pair ... pairs) {
+        return onStatus(level, code, null, null, pairs);
+    }
+
+    //==========================================================================
 
     public static Command connect(ClientOptions options) {
         Amf0Object object = object(
@@ -89,12 +128,10 @@ public abstract class Command extends AbstractMessage {
             pair("fmsVer", "FMS/3,5,1,516"),
             pair("capabilities", 31.0),
             pair("mode", 1.0));
-        Map<String, Object> arg = status(
-            "NetConnection.Connect.Success",
-            "Connection succeeded.",
-            pair("objectEncoding", 0.0),
-            pair("data", map(
-                pair("version", "3,5,1,516"))));
+        Map<String, Object> arg = onStatus(OnStatus.STATUS,
+            "NetConnection.Connect.Success", "Connection succeeded.",
+            pair("objectEncoding", 0.0), 
+            pair("data", map(pair("version", "3,5,1,516"))));
         return new CommandAmf0(transactionId, "_result", object, arg);
     }
 
@@ -129,7 +166,8 @@ public abstract class Command extends AbstractMessage {
     }
 
     private static Command playStatus(String code, String description, String playName, String clientId, Pair ... pairs) {
-        Amf0Object status = status("NetStream.Play." + code, description + " " + playName + ".",
+        Amf0Object status = onStatus(OnStatus.STATUS,
+                "NetStream.Play." + code, description + " " + playName + ".",
                 pair("details", playName),
                 pair("clientid", clientId));
         object(status, pairs);
@@ -154,13 +192,16 @@ public abstract class Command extends AbstractMessage {
     }
 
     public static Command playFailed(String playName, String clientId) {
-        return playStatus("Failed", "Stream not found:", playName, clientId);
+        Amf0Object status = onStatus(OnStatus.ERROR,
+                "NetStream.Play.Failed", "Stream not found");
+        Command command = new CommandAmf0("onStatus", null, status);
+        command.header.setChannelId(8);
+        return command;
     }
 
     public static Command seekNotify(int streamId, int seekTime, String playName, String clientId) {
-        Amf0Object status = status(
-                "NetStream.Seek.Notify",
-                "Seeking " + seekTime + " (stream ID: " + streamId + ").",
+        Amf0Object status = onStatus(OnStatus.STATUS,
+                "NetStream.Seek.Notify", "Seeking " + seekTime + " (stream ID: " + streamId + ").",
                 pair("details", playName),
                 pair("clientid", clientId));        
         Command command = new CommandAmf0("onStatus", null, status);
@@ -171,9 +212,8 @@ public abstract class Command extends AbstractMessage {
     }
 
     public static Command pauseNotify(String playName, String clientId) {
-        Amf0Object status = status(
-                "NetStream.Pause.Notify",
-                "Pausing " + playName,
+        Amf0Object status = onStatus(OnStatus.STATUS,
+                "NetStream.Pause.Notify", "Pausing " + playName,
                 pair("details", playName),
                 pair("clientid", clientId));
         Command command = new CommandAmf0("onStatus", null, status);
@@ -182,9 +222,8 @@ public abstract class Command extends AbstractMessage {
     }
 
     public static Command unpauseNotify(String playName, String clientId) {
-        Amf0Object status = status(
-                "NetStream.Unpause.Notify",
-                "Unpausing " + playName,
+        Amf0Object status = onStatus(OnStatus.STATUS,
+                "NetStream.Unpause.Notify", "Unpausing " + playName,
                 pair("details", playName),
                 pair("clientid", clientId));
         Command command = new CommandAmf0("onStatus", null, status);
@@ -199,21 +238,52 @@ public abstract class Command extends AbstractMessage {
         command.header.setStreamId(streamId);
         return command;
     }
+    
+    private static Command publishStatus(String code, String streamName, String clientId, Pair ... pairs) {
+        Amf0Object status = onStatus(OnStatus.STATUS,
+                code, null, streamName,
+                pair("details", streamName),
+                pair("clientid", clientId));
+        object(status, pairs);
+        Command command = new CommandAmf0("onStatus", null, status);
+        command.header.setChannelId(8);
+        return command;
+    }
 
-    public static Command unpublish(int streamId) { // TODO
+    public static Command publishStart(String streamName, String clientId, int streamId) {
+        return publishStatus("NetStream.Publish.Start", streamName, clientId);
+    }
+
+    public static Command unpublishSuccess(String streamName, String clientId, int streamId) {
+        return publishStatus("NetStream.Unpublish.Success", streamName, clientId);
+    }
+
+    public static Command unpublish(int streamId) {
         Command command = new CommandAmf0("publish", null, false);
         command.header.setChannelId(8);
         command.header.setStreamId(streamId);
         return command;
     }
 
-    public static Command unpublishSuccess(String streamName, String clientId, int streamId) {
-        Amf0Object status = status(
-                "NetStream.Unpublish.Success",
-                "Unpublished " + streamName,
-                pair("details", streamName),
-                pair("clientid", clientId));
-        Command command = new CommandAmf0("onStatus", null, status);
+    public static Command publishBadName(int streamId) {
+        Command command = new CommandAmf0("onStatus", null, 
+                onStatus(OnStatus.ERROR, "NetStream.Publish.BadName", "Stream already exists."));
+        command.header.setChannelId(8);
+        command.header.setStreamId(streamId);
+        return command;
+    }
+
+    public static Command publishNotify(int streamId) {
+        Command command = new CommandAmf0("onStatus", null,
+                onStatus(OnStatus.STATUS, "NetStream.Play.PublishNotify"));
+        command.header.setChannelId(8);
+        command.header.setStreamId(streamId);
+        return command;
+    }
+
+    public static Command unpublishNotify(int streamId) {
+        Command command = new CommandAmf0("onStatus", null,
+                onStatus(OnStatus.STATUS, "NetStream.Play.UnpublishNotify"));
         command.header.setChannelId(8);
         command.header.setStreamId(streamId);
         return command;
@@ -225,6 +295,8 @@ public abstract class Command extends AbstractMessage {
         command.header.setStreamId(streamId);
         return command;
     }
+
+
 
     //==========================================================================
 
@@ -242,7 +314,7 @@ public abstract class Command extends AbstractMessage {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         sb.append(super.toString());        
         sb.append("name: ").append(name);
         sb.append(", transactionId: ").append(transactionId);

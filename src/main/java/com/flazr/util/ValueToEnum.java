@@ -35,7 +35,7 @@ public class ValueToEnum<T extends Enum<T> & ValueToEnum.IntValue> {
     private final Enum[] lookupArray;
     private final int maxIndex;
 
-    public ValueToEnum(T[] enumValues) {
+    public ValueToEnum(final T[] enumValues) {
         final int[] lookupIndexes = new int[enumValues.length];
         for(int i = 0; i < enumValues.length; i++) {
             lookupIndexes[i] = enumValues[i].intValue();
@@ -65,7 +65,7 @@ public class ValueToEnum<T extends Enum<T> & ValueToEnum.IntValue> {
         return maxIndex;
     }
 
-    private String getErrorLogMessage(int i) {
+    private String getErrorLogMessage(final int i) {
         return "bad value / byte: " + i + " (hex: " + Utils.toHex((byte) i) + ")";
     }
 

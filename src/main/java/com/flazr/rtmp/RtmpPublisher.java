@@ -21,12 +21,14 @@ package com.flazr.rtmp;
 
 import com.flazr.io.f4v.F4vReader;
 import com.flazr.io.flv.FlvReader;
+import com.flazr.rtmp.server.RtmpServer;
 import java.util.concurrent.TimeUnit;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.Timeout;
 import org.jboss.netty.util.Timer;
 import org.jboss.netty.util.TimerTask;
@@ -36,12 +38,12 @@ import org.slf4j.LoggerFactory;
 public abstract class RtmpPublisher {
 
     private static final Logger logger = LoggerFactory.getLogger(RtmpPublisher.class);
-    
-    private final int TIMER_TICK_SIZE;
+
+    private final Timer timer;
+    private final int timerTickSize;
+    private final boolean usingSharedTimer;
 
     private final RtmpReader reader;
-    private final Timer timer;
-
     private int streamId;
     private long startTime;    
     private long seekTime;
@@ -65,10 +67,15 @@ public abstract class RtmpPublisher {
 
     }
 
-    public RtmpPublisher(RtmpReader reader, Timer timer, int streamId, int bufferDuration) {
-        TIMER_TICK_SIZE = RtmpConfig.TIMER_TICK_SIZE;
+    public RtmpPublisher(final RtmpReader reader, final int streamId, final int bufferDuration, boolean useSharedTimer) {
+        this.usingSharedTimer = useSharedTimer;
+        if(useSharedTimer) {
+            timer = RtmpServer.TIMER;
+        } else {
+            timer = new HashedWheelTimer(RtmpConfig.TIMER_TICK_SIZE, TimeUnit.MILLISECONDS);
+        }
+        timerTickSize = RtmpConfig.TIMER_TICK_SIZE;
         this.reader = reader;
-        this.timer = timer;
         this.streamId = streamId;
         this.bufferDuration = bufferDuration;
         logger.debug("publisher init, streamId: {}", streamId);
@@ -84,16 +91,8 @@ public abstract class RtmpPublisher {
         }
     }
 
-    public int getStreamId() {
-        return streamId;
-    }
-
-    public RtmpReader getReader() {
-        return reader;
-    }
-
-    public long getTimePosition() {
-        return timePosition;
+    public boolean isStarted() {
+        return currentConversationId > 0;
     }
 
     public boolean isPaused() {
@@ -160,19 +159,19 @@ public abstract class RtmpPublisher {
         final long elapsedTime = System.currentTimeMillis() - startTime;
         final long elapsedTimePlusSeek = elapsedTime + seekTime;
         final double clientBuffer = timePosition - elapsedTimePlusSeek;
-        if(logger.isDebugEnabled()) {
-            logger.debug("elapsed: {}, streamed: {}, buffer: {}",
-                    new Object[]{elapsedTimePlusSeek, timePosition, clientBuffer});
-        }
-        if(clientBuffer > TIMER_TICK_SIZE) { // TODO cleanup
+        if(usingSharedTimer && clientBuffer > timerTickSize) { // TODO cleanup
             reader.setAggregateDuration((int) clientBuffer);
         } else {
             reader.setAggregateDuration(0);
         }
         final RtmpMessage message = reader.next();
         final RtmpHeader header = message.getHeader();
-        final double compensationFactor = clientBuffer / (bufferDuration + TIMER_TICK_SIZE);
+        final double compensationFactor = clientBuffer / (bufferDuration + 1);
         final long delay = (long) ((header.getTime() - timePosition) * compensationFactor);
+        if(logger.isDebugEnabled()) {
+            logger.debug("elapsed: {}, streamed: {}, buffer: {}, factor: {}, delay: {}",
+                    new Object[]{elapsedTimePlusSeek, timePosition, clientBuffer, compensationFactor, delay});
+        }
         timePosition = header.getTime();
         header.setStreamId(streamId);
         final Event readyForNext = new Event(currentConversationId);
@@ -185,7 +184,7 @@ public abstract class RtmpPublisher {
                     logger.warn("channel busy? time taken to write last message: {}", completedIn);
                 }                
                 final long delayToUse = delay - completedIn;
-                if(delayToUse > TIMER_TICK_SIZE) {
+                if(delayToUse > timerTickSize) {
                     timer.newTimeout(new TimerTask() {
                         @Override public void run(Timeout timeout) {
                             Channels.fireMessageReceived(channel, readyForNext);
@@ -211,6 +210,13 @@ public abstract class RtmpPublisher {
         for(RtmpMessage message : getStopMessages(timePosition)) {
             writeToStream(channel, message);
         }
+    }
+
+    public void close() {
+        if(!usingSharedTimer) {
+            timer.stop();
+        }
+        reader.close();        
     }
 
     protected abstract RtmpMessage[] getStopMessages(long timePosition);

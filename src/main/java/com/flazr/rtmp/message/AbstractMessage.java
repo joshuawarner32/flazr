@@ -91,18 +91,6 @@ public abstract class AbstractMessage implements RtmpMessage {
         return pair;
     }
 
-    public static Amf0Object status(String code, Pair ... pairs) {
-        return status(code, null, pairs);
-    }
 
-    public static Amf0Object status(String code, String description, Pair ... pairs) {
-        Amf0Object object = object(
-            pair("level", "status"),
-            pair("code", code));
-        if(description != null) {
-            object.put("description", description);
-        }
-        return object(object, pairs);
-    }
 
 }

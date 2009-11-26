@@ -84,7 +84,7 @@ public abstract class Metadata extends AbstractMessage {
     //==========================================================================
 
     public static Metadata onPlayStatus(double duration, double bytes) {
-        Map<String, Object> map = status(
+        Map<String, Object> map = Command.onStatus(Command.OnStatus.STATUS,
                 "NetStream.Play.Complete",
                 pair("duration", duration),
                 pair("bytes", bytes));

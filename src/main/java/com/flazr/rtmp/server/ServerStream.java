@@ -22,6 +22,7 @@ import com.flazr.rtmp.RtmpMessage;
 import com.flazr.util.Utils;
 import java.util.ArrayList;
 import java.util.List;
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
 
@@ -42,17 +43,14 @@ public class ServerStream {
         }
 
     }
-
+    
     private final String name;
     private final PublishType publishType;
     private final ChannelGroup subscribers;
     private final List<RtmpMessage> configMessages;
+    private Channel publisher;
 
-    public ServerStream(final String name) {
-        this(name, null);
-    }
-
-    public ServerStream(final String rawName, final String typeString) {
+    public ServerStream(final String rawName, final String typeString) {        
         this.name = Utils.trimSlashes(rawName).toLowerCase();
         if(typeString != null) {
             this.publishType = PublishType.parse(typeString); // TODO record, append
@@ -83,6 +81,26 @@ public class ServerStream {
 
     public void addConfigMessage(final RtmpMessage message) {
         configMessages.add(message);
+    }
+
+    public void setPublisher(Channel publisher) {
+        this.publisher = publisher;
+    }
+
+    public Channel getPublisher() {
+        return publisher;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();        
+        sb.append("[name: '").append(name);
+        sb.append("' type: ").append(publishType);
+        sb.append(" publisher: ").append(publisher);
+        sb.append(" subscribers: ").append(subscribers);
+        sb.append(" config: ").append(configMessages);
+        sb.append(']');
+        return sb.toString();
     }
 
 }

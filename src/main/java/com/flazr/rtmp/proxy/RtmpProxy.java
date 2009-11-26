@@ -39,11 +39,14 @@ public class RtmpProxy {
 
     private static final Logger logger = LoggerFactory.getLogger(RtmpProxy.class);
 
-    protected static final ChannelGroup ALL_CHANNELS = new DefaultChannelGroup("rtmp-proxy");
-
-    public static void main(String[] args) throws Exception {
-
+    static {
         RtmpConfig.configureProxy();
+        ALL_CHANNELS = new DefaultChannelGroup("rtmp-proxy");
+    }
+
+    protected static final ChannelGroup ALL_CHANNELS;
+
+    public static void main(String[] args) throws Exception {        
 
         Executor executor = Executors.newCachedThreadPool();
         ChannelFactory factory = new NioServerSocketChannelFactory(executor, executor);
