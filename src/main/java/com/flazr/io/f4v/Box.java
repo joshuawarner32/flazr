@@ -19,13 +19,11 @@
 
 package com.flazr.io.f4v;
 
+import com.flazr.io.BufferedFileChannel;
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.jboss.netty.buffer.ChannelBuffers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,21 +36,13 @@ public class Box {
     private List<Box> children;
     private Payload payload;
 
-    public Box(final FileChannel in, final long endPos) throws Exception {        
-        final ByteBuffer bb = ByteBuffer.allocate(8);
-        in.read(bb);
-        bb.flip();
-        final int boxSize = bb.getInt();
-        final byte[] typeBytes = new byte[4];
-        bb.get(typeBytes);
+    public Box(final BufferedFileChannel in, final long endPos) {
+        final int boxSize = in.readInt();
+        final byte[] typeBytes = in.readBytes(4);
         type = BoxType.parse(new String(typeBytes));        
         final long payloadSize;
         if (boxSize == 1) { // extended
-            bb.clear();
-            in.read(bb);
-            bb.flip();
-            final byte[] extBytes = new byte[8];
-            bb.get(extBytes);
+            final byte[] extBytes = in.readBytes(8);
             final BigInteger bigLen = new BigInteger(1, extBytes);
             payloadSize = bigLen.intValue() - 16;
         } else if (boxSize == 0) { // decided by parent bound
@@ -69,11 +59,8 @@ public class Box {
                 logger.debug("skipping MDAT");
                 in.position(childEndPos);
                 return;
-            }
-            final ByteBuffer buf = ByteBuffer.allocate((int) payloadSize);
-            in.read(buf);
-            buf.flip();
-            payload = type.read(ChannelBuffers.wrappedBuffer(buf));
+            }          
+            payload = type.read(in.read((int) payloadSize));
             logger.debug("<< {} payload: {}", type, payload);
             return;
         }        
@@ -121,7 +108,7 @@ public class Box {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         sb.append('[').append(type);
         sb.append(" fileOffset: ").append(fileOffset);
         if(children != null) {

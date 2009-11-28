@@ -19,11 +19,10 @@
 
 package com.flazr.io.flv;
 
+import com.flazr.io.BufferedFileChannel;
 import com.flazr.rtmp.message.MessageType;
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.rtmp.RtmpMessage;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.slf4j.Logger;
@@ -37,7 +36,7 @@ public class FlvAtom implements RtmpMessage {
     private ChannelBuffer data;    
 
     public static ChannelBuffer flvHeader() {
-        ChannelBuffer out = ChannelBuffers.buffer(13);
+        final ChannelBuffer out = ChannelBuffers.buffer(13);
         out.writeByte((byte) 0x46); // F
         out.writeByte((byte) 0x4C); // L
         out.writeByte((byte) 0x56); // V
@@ -54,20 +53,10 @@ public class FlvAtom implements RtmpMessage {
         in.skipBytes(4); // prev offset
     }
 
-    public FlvAtom(final FileChannel in) {
-        final ByteBuffer headerBuffer = ByteBuffer.allocate(11);
-        try {
-            in.read(headerBuffer);
-            headerBuffer.flip();
-            header = readHeader(ChannelBuffers.wrappedBuffer(headerBuffer));
-            final ByteBuffer dataBuffer = ByteBuffer.allocate(header.getSize());
-            in.read(dataBuffer);
-            dataBuffer.flip();
-            data = ChannelBuffers.wrappedBuffer(dataBuffer);
-            in.position(in.position() + 4); // prev offset
-        } catch(Exception e) {
-            throw new RuntimeException(e);
-        }
+    public FlvAtom(final BufferedFileChannel in) {
+        header = readHeader(in.read(11));
+        data = in.read(header.getSize());        
+        in.position(in.position() + 4); // prev offset
     }
 
     public FlvAtom(final MessageType messageType, final int time, final ChannelBuffer in) {
@@ -117,7 +106,7 @@ public class FlvAtom implements RtmpMessage {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder();
         sb.append(header);
         sb.append(" data: ").append(data);        
         return sb.toString();

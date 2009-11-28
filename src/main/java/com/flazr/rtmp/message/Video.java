@@ -20,8 +20,8 @@
 package com.flazr.rtmp.message;
 
 import com.flazr.rtmp.RtmpHeader;
+import com.flazr.util.Utils;
 import com.flazr.util.ValueToEnum;
-import java.nio.ByteBuffer;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 
@@ -69,12 +69,9 @@ public class Video extends DataMessage {
         data = ChannelBuffers.wrappedBuffer(bytes);
     }
 
-    public Video(final int time, final byte[] prefix, final int compositionOffset, final ByteBuffer bb) {
+    public Video(final int time, final byte[] prefix, final int compositionOffset, final byte[] videoData) {
         header.setTime(time);
-        final ChannelBuffer cb = ChannelBuffers.buffer(prefix.length + 3);
-        cb.writeBytes(prefix);
-        cb.writeMedium(compositionOffset);
-        data = ChannelBuffers.wrappedBuffer(cb.toByteBuffer(), bb);
+        data = ChannelBuffers.wrappedBuffer(prefix, Utils.toInt24(compositionOffset), videoData);
         header.setSize(data.readableBytes());
     }
 

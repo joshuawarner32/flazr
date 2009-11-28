@@ -10,7 +10,7 @@ public class FlvReaderTest {
 
     @Test
     public void testRandomAccessOfMetadataAtom() {
-        FlvReader reader = new FlvReader("sample.flv");
+        FlvReader reader = new FlvReader("home/apps/vod/sample.flv");
         RtmpMessage message = reader.getMetadata();
         assertEquals(message.getHeader().getMessageType(), MessageType.METADATA_AMF0);
         reader.close();
@@ -18,7 +18,7 @@ public class FlvReaderTest {
 
     @Test
     public void testReadBackwards() {
-        FlvReader reader = new FlvReader("sample.flv");
+        FlvReader reader = new FlvReader("home/apps/vod/sample.flv");
         RtmpMessage m1 = reader.next();        
         assertEquals(m1.encode(), reader.prev().encode());
         assertFalse(reader.hasPrev()); // we are at beginning again

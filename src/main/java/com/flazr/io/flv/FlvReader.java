@@ -19,15 +19,12 @@
 
 package com.flazr.io.flv;
 
+import com.flazr.io.BufferedFileChannel;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.message.Aggregate;
 import com.flazr.rtmp.message.MessageType;
 import com.flazr.rtmp.message.Metadata;
-import java.io.File;
-import java.io.FileInputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.slf4j.Logger;
@@ -37,30 +34,18 @@ public class FlvReader implements RtmpReader {
 
     private static final Logger logger = LoggerFactory.getLogger(FlvReader.class);
     
-    private final FileChannel in;      
-    private final String absolutePath; // just for log
+    private final BufferedFileChannel in;
     private final long mediaStartPosition;
     private final Metadata metadata;
-    private int aggregateDuration;
-    private boolean closed;
+    private int aggregateDuration;    
 
-    public FlvReader(String fileName) {
-        this(new File(fileName));
-    }
-
-    public FlvReader(File file) {
-        absolutePath = file.getAbsolutePath();
-        try {            
-            in = new FileInputStream(file).getChannel();
-            in.position(13); // skip flv header
-            RtmpMessage metadataAtom = next();
-            metadata = (Metadata) MessageType.decode(metadataAtom.getHeader(), metadataAtom.encode());
-            mediaStartPosition = in.position();
-            logger.info("opened file for reading: {}", absolutePath);
-            logger.debug("flv file metadata: {}", metadata);
-        } catch(Exception e) {
-            throw new RuntimeException(e);
-        }
+    public FlvReader(final String path) {
+        in = new BufferedFileChannel(path);
+        in.position(13); // skip flv header
+        final RtmpMessage metadataAtom = next();
+        metadata = (Metadata) MessageType.decode(metadataAtom.getHeader(), metadataAtom.encode());
+        mediaStartPosition = in.position();
+        logger.debug("flv file metadata: {}", metadata);
     }
 
     @Override
@@ -93,7 +78,7 @@ public class FlvReader implements RtmpReader {
         return time;
     }
 
-    private boolean isSyncFrame(final RtmpMessage message) {        
+    private static boolean isSyncFrame(final RtmpMessage message) {
         final byte firstByte = message.encode().getByte(0);
         if((firstByte & 0xF0) == 0x10) {
             return true;
@@ -149,46 +134,23 @@ public class FlvReader implements RtmpReader {
     }
 
     @Override
-    public boolean hasNext() {
-        if(closed) {
-            return false;
-        }
-        try {
-            return in.position() < in.size();
-        } catch(Exception e) {
-            logger.info("exception when calling hasNext(): {}", e.getMessage());
-            return false;
-        }
+    public boolean hasNext() {        
+        return in.position() < in.size();
     }
 
 
-    protected boolean hasPrev() {
-        if(closed) {
-            return false;
-        }
-        try {
-            return in.position() > mediaStartPosition;
-        } catch(Exception e) {
-            logger.info("exception when calling hasPrev(): {}", e.getMessage());
-            return false;
-        }
+    protected boolean hasPrev() {        
+        return in.position() > mediaStartPosition;
     }
 
-    protected RtmpMessage prev() {
-        try {
-            in.position(in.position() - 4);
-            final ByteBuffer bb = ByteBuffer.allocate(4);
-            in.read(bb);
-            bb.flip();
-            final long start = in.position() - 4 - bb.getInt();            
-            in.position(start);
-            final FlvAtom flvAtom = new FlvAtom(in);
-            in.position(start);
-            return flvAtom;
-
-        } catch(Exception e) {
-            throw new RuntimeException(e);
-        }        
+    protected RtmpMessage prev() {        
+        final long oldPos = in.position();
+        in.position(oldPos - 4);
+        final long newPos = oldPos - 4 - in.readInt();
+        in.position(newPos);
+        final FlvAtom flvAtom = new FlvAtom(in);
+        in.position(newPos);
+        return flvAtom;
     }
 
     private static final int AGGREGATE_SIZE_LIMIT = 65536;
@@ -226,25 +188,13 @@ public class FlvReader implements RtmpReader {
 
     @Override
     public void close() {
-        closed = true;
-        try {
-            if(in.isOpen()) {
-                in.close();
-            }
-            logger.info("closed file: {}", absolutePath);
-        } catch(Exception e) {
-            logger.info("exception when closing file: {}", e.getMessage());
-        }        
+        in.close();
     }
 
     public static void main(String[] args) {
-        FlvReader reader = new FlvReader("home/apps/vod/avatar-vp6.flv");
-        while(reader.hasNext()) {
-            RtmpMessage message = reader.next();
-            ChannelBuffer data = message.encode();
-            byte first = data.getByte(0);
-            boolean sync = (first & 0xF0) == 0x10;
-            logger.debug("{} {} {}", new Object[]{message, sync, ChannelBuffers.hexDump(data)});
+        FlvReader reader = new FlvReader("home/apps/vod/sample.flv");
+        while(reader.hasNext()) {                      
+            logger.debug("{}", reader.next());
         }
         reader.close();
     }

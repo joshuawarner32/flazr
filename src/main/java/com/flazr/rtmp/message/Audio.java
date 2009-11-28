@@ -21,7 +21,6 @@ package com.flazr.rtmp.message;
 
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.util.ValueToEnum;
-import java.nio.ByteBuffer;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 
@@ -77,9 +76,9 @@ public class Audio extends DataMessage {
         data = ChannelBuffers.wrappedBuffer(bytes);
     }
 
-    public Audio(final int time, final byte[] prefix, final ByteBuffer bb) {
+    public Audio(final int time, final byte[] prefix, final byte[] audioData) {
         header.setTime(time);
-        data = ChannelBuffers.wrappedBuffer(ByteBuffer.wrap(prefix), bb);
+        data = ChannelBuffers.wrappedBuffer(prefix, audioData);
         header.setSize(data.readableBytes());
     }
     

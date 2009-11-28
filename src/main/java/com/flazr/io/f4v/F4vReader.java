@@ -19,6 +19,7 @@
 
 package com.flazr.io.f4v;
 
+import com.flazr.io.BufferedFileChannel;
 import com.flazr.io.flv.FlvAtom;
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.rtmp.RtmpMessage;
@@ -29,9 +30,6 @@ import com.flazr.rtmp.message.Metadata;
 import com.flazr.rtmp.message.Video;
 import com.flazr.util.Utils;
 import java.io.File;
-import java.io.FileInputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.List;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -50,33 +48,26 @@ public class F4vReader implements RtmpReader {
 
     private byte[] AVC1_BEGIN;
 
-    private final FileChannel in;
-    private final String absolutePath; // just for log
+    private final BufferedFileChannel in;    
     private final List<Sample> samples;
     private final Metadata metadata;
 
     private int cursor;
-    private int aggregateDuration;
-    private boolean closed;
+    private int aggregateDuration;    
 
     public F4vReader(String fileName) {
         this(new File(fileName));
     }
 
     public F4vReader(File file) {
-        absolutePath = file.getAbsolutePath();
-        try {
-            in = new FileInputStream(file).getChannel();
-            final MovieInfo movie = new MovieInfo(in);
-            AVC1_BEGIN = movie.getVideoDecoderConfig();
-            logger.debug("video decoder config inited: {}", Utils.toHex(AVC1_BEGIN));
-            metadata = Metadata.onMetaData(movie);
-            samples = movie.getSamples();
-            cursor = 0;
-            logger.info("opened file for reading: {}", absolutePath);
-        } catch(Exception e) {
-            throw new RuntimeException(e);
-        }
+        in = new BufferedFileChannel(file);
+        final MovieInfo movie = new MovieInfo(in);
+        in.position(0);
+        AVC1_BEGIN = movie.getVideoDecoderConfig();
+        logger.debug("video decoder config inited: {}", Utils.toHex(AVC1_BEGIN));
+        metadata = Metadata.onMetaData(movie);
+        samples = movie.getSamples();
+        cursor = 0;
     }
 
     @Override
@@ -127,9 +118,6 @@ public class F4vReader implements RtmpReader {
 
     @Override
     public boolean hasNext() {
-        if(closed) {
-            return false;
-        }
         return cursor < samples.size();
     }
 
@@ -164,40 +152,26 @@ public class F4vReader implements RtmpReader {
     }
 
     private RtmpMessage getMessage(final Sample sample) {
-        final ByteBuffer bb = ByteBuffer.allocate(sample.getSize());
-        try {
-            in.position(sample.getFileOffset());
-            in.read(bb);
-        } catch(Exception e) {
-            throw new RuntimeException(e);
-        }
-        final int time = sample.getTime();
-        final byte[] prefix;
-        bb.flip();
+        in.position(sample.getFileOffset());
+        final byte[] sampleBytes = in.readBytes(sample.getSize());        
+        final byte[] prefix;        
         if(sample.isVideo()) {
             if(sample.isSyncSample()) {
                 prefix = AVC1_PREFIX_KEYFRAME;
             } else {
                 prefix = AVC1_PREFIX;
             }
-            return new Video(time, prefix, sample.getCompositionTimeOffset(), bb);
+            // TODO move prefix logic to Audio / Video
+            return new Video(sample.getTime(), prefix, sample.getCompositionTimeOffset(), sampleBytes);
         } else {
             prefix = MP4A_PREFIX;
-            return new Audio(time, prefix, bb);
+            return new Audio(sample.getTime(), prefix, sampleBytes);
         }
     }
 
     @Override
     public void close() {
-        closed = true;
-        try {
-            if(in.isOpen()) {
-                in.close();
-            }
-            logger.info("closed file: {}", absolutePath);
-        } catch(Exception e) {
-            logger.info("exception when closing file: {}", e.getMessage());
-        } 
+        in.close();
     }
 
     @Override

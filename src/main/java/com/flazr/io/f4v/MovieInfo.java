@@ -19,10 +19,10 @@
 
 package com.flazr.io.f4v;
 
+import com.flazr.io.BufferedFileChannel;
 import com.flazr.io.f4v.box.FTYP;
 import com.flazr.io.f4v.box.MVHD;
 import com.flazr.io.f4v.box.STSD.VideoSD;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -61,7 +61,7 @@ public class MovieInfo {
         Collections.sort(samples); // sort by time, implements comparable
     }
 
-    public MovieInfo(final FileChannel in) throws Exception {
+    public MovieInfo(final BufferedFileChannel in) {
         while(in.position() < in.size()) {            
             Box box = new Box(in, in.size());
             if(box.getType() == BoxType.FTYP) {

@@ -67,9 +67,7 @@ public class ClientOptions {
     public static void main(String[] args) {
         ClientOptions co = new ClientOptions();
         co.parseCli(new String[]{
-            "-buffer", "300",
-            "rtmp://localhost/vod/IronMan",
-            "test.flv"
+            "-live", "-app", "live", "cameraFeed", "home/apps/vod/IronMan.flv"
         });
         RtmpClient.connect(co);
     }

@@ -166,7 +166,7 @@ public abstract class RtmpPublisher {
         }
         final RtmpMessage message = reader.next();
         final RtmpHeader header = message.getHeader();
-        final double compensationFactor = clientBuffer / (bufferDuration + 1);
+        final double compensationFactor = clientBuffer / (bufferDuration + timerTickSize);
         final long delay = (long) ((header.getTime() - timePosition) * compensationFactor);
         if(logger.isDebugEnabled()) {
             logger.debug("elapsed: {}, streamed: {}, buffer: {}, factor: {}, delay: {}",
