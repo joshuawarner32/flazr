@@ -19,7 +19,8 @@
 
 package com.flazr.io.flv;
 
-import com.flazr.io.BufferedFileChannel;
+import com.flazr.io.BufferReader;
+import com.flazr.io.FileChannelReader;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.message.Aggregate;
@@ -34,13 +35,13 @@ public class FlvReader implements RtmpReader {
 
     private static final Logger logger = LoggerFactory.getLogger(FlvReader.class);
     
-    private final BufferedFileChannel in;
+    private final BufferReader in;
     private final long mediaStartPosition;
     private final Metadata metadata;
     private int aggregateDuration;    
 
     public FlvReader(final String path) {
-        in = new BufferedFileChannel(path);
+        in = new FileChannelReader(path);
         in.position(13); // skip flv header
         final RtmpMessage metadataAtom = next();
         metadata = (Metadata) MessageType.decode(metadataAtom.getHeader(), metadataAtom.encode());

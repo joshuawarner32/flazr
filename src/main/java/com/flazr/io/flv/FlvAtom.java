@@ -19,7 +19,7 @@
 
 package com.flazr.io.flv;
 
-import com.flazr.io.BufferedFileChannel;
+import com.flazr.io.BufferReader;
 import com.flazr.rtmp.message.MessageType;
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.rtmp.RtmpMessage;
@@ -53,7 +53,7 @@ public class FlvAtom implements RtmpMessage {
         in.skipBytes(4); // prev offset
     }
 
-    public FlvAtom(final BufferedFileChannel in) {
+    public FlvAtom(final BufferReader in) {
         header = readHeader(in.read(11));
         data = in.read(header.getSize());        
         in.position(in.position() + 4); // prev offset

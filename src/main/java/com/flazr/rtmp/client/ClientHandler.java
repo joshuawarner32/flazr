@@ -247,7 +247,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 }
                 break;
             case BYTES_READ:
-                logger.info("server bytes read: {}", message);
+                logger.info("ack from server: {}", message);
                 break;
             case WINDOW_ACK_SIZE:
                 WindowAckSize was = (WindowAckSize) message;                

@@ -151,7 +151,7 @@ public abstract class RtmpPublisher {
         channel.write(message);
     }
 
-    public void write(final Channel channel) {
+    public synchronized void write(final Channel channel) { // only place using :SYNCHRONIZED
         if (!reader.hasNext() || playLength >= 0 && timePosition > (seekTime + playLength)) {
             stop(channel);
             return;

@@ -67,7 +67,8 @@ public class ClientOptions {
     public static void main(String[] args) {
         ClientOptions co = new ClientOptions();
         co.parseCli(new String[]{
-            "-live", "-app", "live", "cameraFeed", "home/apps/vod/IronMan.flv"
+            "-version", "00000000", "-live", "-app", "oflaDemo", "-buffer", "0",
+            "stream1259414892312", "home/apps/vod/IronMan.flv"
         });
         RtmpClient.connect(co);
     }

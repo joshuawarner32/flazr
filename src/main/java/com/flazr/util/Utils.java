@@ -28,8 +28,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -37,7 +35,6 @@ import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
 
 public class Utils {
 
@@ -127,17 +124,6 @@ public class Utils {
         out.writeByte((byte) (0xFF & (value >> 8)));
         out.writeByte((byte) (0xFF & (value >> 16)));
         out.writeByte((byte) (0xFF & (value >> 24)));
-    }
-
-    public static ChannelBuffer read(final FileChannel in, final int size) {
-        final byte[] bytes = new byte[size];
-        final ByteBuffer bb = ByteBuffer.wrap(bytes);
-        try {
-            in.read(bb);
-        } catch(Exception e) {
-            throw new RuntimeException(e);
-        }
-        return ChannelBuffers.wrappedBuffer(bytes);
     }
 
     public static CharSequence readAsString(String fileName) {

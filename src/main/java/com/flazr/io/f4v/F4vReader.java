@@ -19,7 +19,8 @@
 
 package com.flazr.io.f4v;
 
-import com.flazr.io.BufferedFileChannel;
+import com.flazr.io.BufferReader;
+import com.flazr.io.FileChannelReader;
 import com.flazr.io.flv.FlvAtom;
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.rtmp.RtmpMessage;
@@ -29,7 +30,6 @@ import com.flazr.rtmp.message.Audio;
 import com.flazr.rtmp.message.Metadata;
 import com.flazr.rtmp.message.Video;
 import com.flazr.util.Utils;
-import java.io.File;
 import java.util.List;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -48,19 +48,15 @@ public class F4vReader implements RtmpReader {
 
     private byte[] AVC1_BEGIN;
 
-    private final BufferedFileChannel in;    
+    private final BufferReader in;
     private final List<Sample> samples;
     private final Metadata metadata;
 
     private int cursor;
-    private int aggregateDuration;    
+    private int aggregateDuration;
 
-    public F4vReader(String fileName) {
-        this(new File(fileName));
-    }
-
-    public F4vReader(File file) {
-        in = new BufferedFileChannel(file);
+    public F4vReader(final String path) {
+        in = new FileChannelReader(path);
         final MovieInfo movie = new MovieInfo(in);
         in.position(0);
         AVC1_BEGIN = movie.getVideoDecoderConfig();

@@ -19,7 +19,7 @@
 
 package com.flazr.io.f4v;
 
-import com.flazr.io.BufferedFileChannel;
+import com.flazr.io.BufferReader;
 import com.flazr.io.f4v.box.FTYP;
 import com.flazr.io.f4v.box.MVHD;
 import com.flazr.io.f4v.box.STSD.VideoSD;
@@ -61,7 +61,7 @@ public class MovieInfo {
         Collections.sort(samples); // sort by time, implements comparable
     }
 
-    public MovieInfo(final BufferedFileChannel in) {
+    public MovieInfo(final BufferReader in) {
         while(in.position() < in.size()) {            
             Box box = new Box(in, in.size());
             if(box.getType() == BoxType.FTYP) {

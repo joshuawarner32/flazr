@@ -19,7 +19,7 @@
 
 package com.flazr.io.f4v;
 
-import com.flazr.io.BufferedFileChannel;
+import com.flazr.io.BufferReader;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,7 +36,7 @@ public class Box {
     private List<Box> children;
     private Payload payload;
 
-    public Box(final BufferedFileChannel in, final long endPos) {
+    public Box(final BufferReader in, final long endPos) {
         final int boxSize = in.readInt();
         final byte[] typeBytes = in.readBytes(4);
         type = BoxType.parse(new String(typeBytes));        
