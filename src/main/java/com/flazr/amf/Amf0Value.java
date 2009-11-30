@@ -196,7 +196,7 @@ public class Amf0Value {
                 }
                 int i = 0;
                 final byte[] endMarker = new byte[3];
-                while (in.readableBytes() >= OBJECT_END_MARKER.length) {
+                while (in.readable()) {
                     if(count > 0 && i++ == count) {
                         break;
                     }
