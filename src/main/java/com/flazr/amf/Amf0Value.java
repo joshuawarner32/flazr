@@ -187,8 +187,8 @@ public class Amf0Value {
                 if(type == MAP) {
                     count = in.readInt(); // should always be 0
                     map = new LinkedHashMap<String, Object>();
-                    if(count > 0) {
-                        logger.warn("server sent non-zero size for MAP type");
+                    if(count > 0 && logger.isDebugEnabled()) {
+                        logger.debug("non-zero size for MAP type: {}", count);
                     }
                 } else {
                     count = 0;
@@ -198,11 +198,17 @@ public class Amf0Value {
                 final byte[] endMarker = new byte[3];
                 while (in.readable()) {
                     if(count > 0 && i++ == count) {
+                        if(logger.isDebugEnabled()) {
+                            logger.debug("stopping map decode after reaching count: {}", count);
+                        }
                         break;
                     }
                     in.getBytes(in.readerIndex(), endMarker);
                     if (Arrays.equals(endMarker, OBJECT_END_MARKER)) {
                         in.skipBytes(3);
+                        if(logger.isDebugEnabled()) {
+                            logger.debug("end MAP / OBJECT, found object end marker [000009]");
+                        }
                         break;
                     }
                     map.put(decodeString(in), decode(in));
