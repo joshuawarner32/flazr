@@ -180,18 +180,26 @@ public class Amf0Value {
                     array[i] = decode(in);
                 }
                 return array;
-            case MAP:
-                in.readInt(); // will always be 0
-                // no break; remaining processing same as OBJECT
+            case MAP:               
             case OBJECT:
+                final int count;
                 final Map<String, Object> map;
-                if(type == Type.MAP) {
+                if(type == MAP) {
+                    count = in.readInt(); // should always be 0
                     map = new LinkedHashMap<String, Object>();
+                    if(count > 0) {
+                        logger.warn("server sent non-zero size for MAP type");
+                    }
                 } else {
+                    count = 0;
                     map = new Amf0Object();
                 }
+                int i = 0;
                 final byte[] endMarker = new byte[3];
-                while (true) {
+                while (in.readableBytes() >= OBJECT_END_MARKER.length) {
+                    if(count > 0 && i++ == count) {
+                        break;
+                    }
                     in.getBytes(in.readerIndex(), endMarker);
                     if (Arrays.equals(endMarker, OBJECT_END_MARKER)) {
                         in.skipBytes(3);
