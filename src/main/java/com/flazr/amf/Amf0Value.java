@@ -197,17 +197,17 @@ public class Amf0Value {
                 int i = 0;
                 final byte[] endMarker = new byte[3];
                 while (in.readable()) {
-                    if(count > 0 && i++ == count) {
-                        if(logger.isDebugEnabled()) {
-                            logger.debug("stopping map decode after reaching count: {}", count);
-                        }
-                        break;
-                    }
                     in.getBytes(in.readerIndex(), endMarker);
                     if (Arrays.equals(endMarker, OBJECT_END_MARKER)) {
                         in.skipBytes(3);
                         if(logger.isDebugEnabled()) {
                             logger.debug("end MAP / OBJECT, found object end marker [000009]");
+                        }
+                        break;
+                    }
+                    if(count > 0 && i++ == count) {
+                        if(logger.isDebugEnabled()) {
+                            logger.debug("stopping map decode after reaching count: {}", count);
                         }
                         break;
                     }
