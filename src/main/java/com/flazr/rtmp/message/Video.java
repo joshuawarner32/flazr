@@ -75,6 +75,10 @@ public class Video extends DataMessage {
         header.setSize(data.readableBytes());
     }
 
+    public Video(final int time, final ChannelBuffer in) {
+        super(time, in);
+    }
+
     public static Video empty() {
         Video empty = new Video();
         empty.data = ChannelBuffers.wrappedBuffer(new byte[2]);

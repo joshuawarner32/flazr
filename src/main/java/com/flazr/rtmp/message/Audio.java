@@ -81,6 +81,10 @@ public class Audio extends DataMessage {
         data = ChannelBuffers.wrappedBuffer(prefix, audioData);
         header.setSize(data.readableBytes());
     }
+
+    public Audio(final int time, final ChannelBuffer in) {
+        super(time, in);
+    }
     
     public static Audio empty() {
         Audio empty = new Audio();

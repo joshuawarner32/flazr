@@ -36,6 +36,12 @@ public abstract class DataMessage extends AbstractMessage {
         super(header, in);
     }
 
+    public DataMessage(final int time, final ChannelBuffer in) {        
+        header.setTime(time);
+        header.setSize(in.readableBytes());
+        data = in;
+    }
+
     @Override
     public ChannelBuffer encode() {
         if(encoded) {
