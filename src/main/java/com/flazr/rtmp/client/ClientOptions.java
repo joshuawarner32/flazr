@@ -20,6 +20,7 @@
 package com.flazr.rtmp.client;
 
 import com.flazr.rtmp.RtmpHandshake;
+import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.server.ServerStream;
 import com.flazr.rtmp.server.ServerStream.PublishType;
 import com.flazr.util.Utils;
@@ -50,6 +51,7 @@ public class ClientOptions {
     private String appName = "vod";
     private String streamName;
     private String fileToPublish;
+    private RtmpReader readerToPublish;
     private String saveAs;    
     private boolean rtmpe;
     private Map<String, Object> params;
@@ -73,7 +75,7 @@ public class ClientOptions {
         RtmpClient.connect(co);
     }
 
-    protected ClientOptions() {}
+    public ClientOptions() {}
 
     public ClientOptions(String host, String appName, String streamName, String saveAs) {
         this(host, 1935, appName, streamName, saveAs, false, null);
@@ -130,10 +132,6 @@ public class ClientOptions {
         if(rtmpe) {
             logger.debug("rtmpe requested, will use encryption");
         }        
-    }
-
-    public void setFileToPublish(String fileName) {
-        this.fileToPublish = fileName;
     }
     
     public void publishLive() {
@@ -296,8 +294,24 @@ public class ClientOptions {
         return fileToPublish;
     }
 
+    public void setFileToPublish(String fileName) {
+        this.fileToPublish = fileName;
+    }
+
+    public RtmpReader getReaderToPublish() {
+        return readerToPublish;
+    }
+
+    public void setReaderToPublish(RtmpReader readerToPublish) {
+        this.readerToPublish = readerToPublish;
+    }
+
     public String getAppName() {
         return appName;
+    }
+
+    public void setAppName(String appName) {
+        this.appName = appName;
     }
 
     public String getTcUrl() {

@@ -75,6 +75,7 @@ public class ServerStream {
         return name;
     }
 
+
     public List<RtmpMessage> getConfigMessages() {
         return configMessages;
     }
@@ -85,6 +86,7 @@ public class ServerStream {
 
     public void setPublisher(Channel publisher) {
         this.publisher = publisher;
+        configMessages.clear();
     }
 
     public Channel getPublisher() {

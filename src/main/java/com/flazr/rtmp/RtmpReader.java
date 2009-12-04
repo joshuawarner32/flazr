@@ -20,9 +20,8 @@
 package com.flazr.rtmp;
 
 import com.flazr.rtmp.message.Metadata;
-import java.util.Iterator;
 
-public interface RtmpReader extends Iterator<RtmpMessage> {
+public interface RtmpReader {
 
     Metadata getMetadata();
 
@@ -35,5 +34,9 @@ public interface RtmpReader extends Iterator<RtmpMessage> {
     long seek(long timePosition);
 
     void close();
+
+    boolean hasNext();
+
+    RtmpMessage next();
 
 }

@@ -124,9 +124,4 @@ public class LoopedReader implements RtmpReader {
         return message;
     }
 
-    @Override
-    public void remove() {
-        throw new UnsupportedOperationException("remove not supported");
-    }
-
 }

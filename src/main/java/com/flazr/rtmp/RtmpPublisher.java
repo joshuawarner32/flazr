@@ -132,7 +132,7 @@ public abstract class RtmpPublisher {
             seekTime = 0;
         }
         timePosition = seekTime;
-        logger.debug("play start, seek requested: {} actual seek: {}, play length: {}, conversation: {}",
+        logger.debug("publish start, seek requested: {} actual seek: {}, play length: {}, conversation: {}",
                 new Object[]{seekTimeRequested, seekTime, playLength, currentConversationId});
         for(final RtmpMessage message : messages) {
             writeToStream(channel, message);
@@ -151,8 +151,17 @@ public abstract class RtmpPublisher {
         channel.write(message);
     }
 
-    public synchronized void write(final Channel channel) { // only place using :SYNCHRONIZED
-        if (!reader.hasNext() || playLength >= 0 && timePosition > (seekTime + playLength)) {
+    private void write(final Channel channel) { // only place using :SYNCHRONIZED
+        final long writeTime = System.currentTimeMillis();
+        final RtmpMessage message;
+        synchronized(reader) {
+            if(reader.hasNext()) {
+                message = reader.next();
+            } else {
+                message = null;
+            }
+        }
+        if (message == null || playLength >= 0 && timePosition > (seekTime + playLength)) {
             stop(channel);
             return;
         }
@@ -163,8 +172,7 @@ public abstract class RtmpPublisher {
             reader.setAggregateDuration((int) clientBuffer);
         } else {
             reader.setAggregateDuration(0);
-        }
-        final RtmpMessage message = reader.next();
+        }        
         final RtmpHeader header = message.getHeader();
         final double compensationFactor = clientBuffer / (bufferDuration + timerTickSize);
         final long delay = (long) ((header.getTime() - timePosition) * compensationFactor);
@@ -174,8 +182,7 @@ public abstract class RtmpPublisher {
         }
         timePosition = header.getTime();
         header.setStreamId(streamId);
-        final Event readyForNext = new Event(currentConversationId);
-        final long writeTime = System.currentTimeMillis();
+
         final ChannelFuture future = channel.write(message);
         future.addListener(new ChannelFutureListener() {
             @Override public void operationComplete(final ChannelFuture cf) {
@@ -183,18 +190,26 @@ public abstract class RtmpPublisher {
                 if(completedIn > 2000) {
                     logger.warn("channel busy? time taken to write last message: {}", completedIn);
                 }                
-                final long delayToUse = delay - completedIn;
-                if(delayToUse > timerTickSize) {
-                    timer.newTimeout(new TimerTask() {
-                        @Override public void run(Timeout timeout) {
-                            Channels.fireMessageReceived(channel, readyForNext);
-                        }
-                    }, delayToUse, TimeUnit.MILLISECONDS);
-                } else {
-                    Channels.fireMessageReceived(channel, readyForNext);
-                }
+                final long delayToUse = clientBuffer > 0 ? delay - completedIn : 0;
+                fireNext(channel, delayToUse);
             }
         });
+    }
+
+    public void fireNext(final Channel channel, final long delay) {
+        final Event readyForNext = new Event(currentConversationId);
+        if(delay > timerTickSize) {
+            timer.newTimeout(new TimerTask() {
+                @Override public void run(Timeout timeout) {
+                    if(logger.isDebugEnabled()) {
+                        logger.debug("running after delay: {}", delay);
+                    }
+                    Channels.fireMessageReceived(channel, readyForNext);
+                }
+            }, delay, TimeUnit.MILLISECONDS);
+        } else {
+            Channels.fireMessageReceived(channel, readyForNext);
+        }
     }
 
     public void pause() {

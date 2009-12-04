@@ -183,19 +183,15 @@ public class FlvReader implements RtmpReader {
     }
 
     @Override
-    public void remove() {
-        throw new UnsupportedOperationException("remove not supported");
-    }
-
-    @Override
     public void close() {
         in.close();
     }
 
     public static void main(String[] args) {
-        FlvReader reader = new FlvReader("home/apps/vod/sample.flv");
-        while(reader.hasNext()) {                      
-            logger.debug("{}", reader.next());
+        FlvReader reader = new FlvReader("home/apps/vod/sample1_150kbps.f4v.flv");
+        while(reader.hasNext()) {
+            RtmpMessage message = reader.next();
+            logger.debug("{} {}", message, ChannelBuffers.hexDump(message.encode()));
         }
         reader.close();
     }

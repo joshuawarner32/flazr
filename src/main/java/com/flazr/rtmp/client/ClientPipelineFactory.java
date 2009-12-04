@@ -40,8 +40,10 @@ public class ClientPipelineFactory implements ChannelPipelineFactory {
         pipeline.addLast("handshaker", new ClientHandshakeHandler(options));
         pipeline.addLast("decoder", new RtmpDecoder());
         pipeline.addLast("encoder", new RtmpEncoder());
-//        pipeline.addLast("executor", new ExecutionHandler(
-//                new OrderedMemoryAwareThreadPoolExecutor(16, 1048576, 1048576)));
+        if(options.getLoad() == 1) {
+            pipeline.addLast("executor", new ExecutionHandler(
+                    new OrderedMemoryAwareThreadPoolExecutor(16, 1048576, 1048576)));
+        }
         pipeline.addLast("handler", new ClientHandler(options));
         return pipeline;
     }

@@ -142,8 +142,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         }
                         break;
                     case STREAM_BEGIN:
-                        if(publisher != null) {
-                            logger.info("publish mode, stream begin, will start {}", control);
+                        if(publisher != null && !publisher.isStarted()) {
                             publisher.start(channel, options.getStart(),
                                     options.getLength(), new ChunkSize(4096));
                             return;
@@ -191,7 +190,12 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         streamId = ((Double) command.getArg(0)).intValue();
                         logger.debug("streamId to use: {}", streamId);
                         if(options.getPublishType() != null) { // TODO append, record                            
-                            RtmpReader reader = RtmpPublisher.getReader(options.getFileToPublish());
+                            RtmpReader reader;
+                            if(options.getFileToPublish() != null) {
+                                reader = RtmpPublisher.getReader(options.getFileToPublish());
+                            } else {
+                                reader = options.getReaderToPublish();
+                            }
                             if(options.getLoop() > 1) {
                                 reader = new LoopedReader(reader, options.getLoop());
                             }
@@ -265,7 +269,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
             logger.info("ignoring rtmp message: {}", message);
         }
         if(publisher != null && publisher.isStarted()) { // TODO better state machine
-            publisher.write(channel);
+            publisher.fireNext(channel, 0);
         }
     }
 
