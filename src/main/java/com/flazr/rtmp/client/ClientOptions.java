@@ -21,6 +21,7 @@ package com.flazr.rtmp.client;
 
 import com.flazr.rtmp.RtmpHandshake;
 import com.flazr.rtmp.RtmpReader;
+import com.flazr.rtmp.RtmpWriter;
 import com.flazr.rtmp.server.ServerStream;
 import com.flazr.rtmp.server.ServerStream.PublishType;
 import com.flazr.util.Utils;
@@ -52,6 +53,7 @@ public class ClientOptions {
     private String streamName;
     private String fileToPublish;
     private RtmpReader readerToPublish;
+    private RtmpWriter writerToSave;
     private String saveAs;    
     private boolean rtmpe;
     private Map<String, Object> params;
@@ -452,6 +454,14 @@ public class ClientOptions {
 
     public void setThreads(int threads) {
         this.threads = threads;
+    }
+
+    public RtmpWriter getWriterToSave() {
+        return writerToSave;
+    }
+
+    public void setWriterToSave(RtmpWriter writerToSave) {
+        this.writerToSave = writerToSave;
     }
 
     @Override

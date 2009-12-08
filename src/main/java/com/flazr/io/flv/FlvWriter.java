@@ -28,9 +28,10 @@ import org.slf4j.LoggerFactory;
 
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.rtmp.RtmpMessage;
+import com.flazr.rtmp.RtmpWriter;
 import org.jboss.netty.buffer.ChannelBuffer;
 
-public class FlvWriter {
+public class FlvWriter implements RtmpWriter {
 
     private static final Logger logger = LoggerFactory.getLogger(FlvWriter.class);
 
@@ -64,6 +65,7 @@ public class FlvWriter {
         }        
     }
 
+    @Override
     public void close() {
         if(out != null) {
             try {
@@ -90,6 +92,7 @@ public class FlvWriter {
         }
     }
 
+    @Override
     public void write(final RtmpMessage message) {
         final RtmpHeader header = message.getHeader();
         if(header.isAggregate()) {

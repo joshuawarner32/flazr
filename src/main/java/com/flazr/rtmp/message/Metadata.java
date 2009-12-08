@@ -51,11 +51,35 @@ public abstract class Metadata extends AbstractMessage {
         return data[index];
     }
 
+    private Object getValue(String key) {
+        final Map<String, Object> map = getMap(0);
+        if(map == null) {
+            return null;
+        }
+        return map.get(key);
+    }
+
+    public Map<String, Object> getMap(int index) {
+        return (Map<String, Object>) getData(index);
+    }
+
+    public String getString(String key) {
+        return (String) getValue(key);
+    }
+
+    public Boolean getBoolean(String key) {
+        return (Boolean) getValue(key);
+    }
+
+    public Double getDouble(String key) {
+        return (Double) getValue(key);
+    }
+
     public double getDuration() {
         if(data == null || data.length == 0) {
             return -1;
         }
-        final Map<String, Object> map = (Map<String, Object>) data[0];
+        final Map<String, Object> map = getMap(0);
         if(map == null) {
             return -1;
         }
@@ -78,8 +102,6 @@ public abstract class Metadata extends AbstractMessage {
         }
         map.put("duration", duration);
     }
-
-
 
     //==========================================================================
 

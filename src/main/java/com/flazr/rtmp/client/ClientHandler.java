@@ -26,6 +26,7 @@ import com.flazr.rtmp.message.Control;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.RtmpPublisher;
+import com.flazr.rtmp.RtmpWriter;
 import com.flazr.rtmp.message.BytesRead;
 import com.flazr.rtmp.message.ChunkSize;
 import com.flazr.rtmp.message.WindowAckSize;
@@ -58,7 +59,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     private ClientOptions options;
     private byte[] swfvBytes;
 
-    private FlvWriter writer;
+    private RtmpWriter writer;
 
     private int bytesReadWindow = 2500000;
     private long bytesRead;
@@ -207,7 +208,10 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                             channel.write(Command.publish(streamId, options));
                             return;
                         } else {
-                            writer = new FlvWriter(options.getStart(), options.getSaveAs());
+                            writer = options.getWriterToSave();
+                            if(writer == null) {
+                                writer = new FlvWriter(options.getStart(), options.getSaveAs());
+                            }
                             channel.write(Command.play(streamId, options));
                             channel.write(Control.setBuffer(streamId, 0));
                         }

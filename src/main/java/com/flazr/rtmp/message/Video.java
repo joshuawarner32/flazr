@@ -21,40 +21,10 @@ package com.flazr.rtmp.message;
 
 import com.flazr.rtmp.RtmpHeader;
 import com.flazr.util.Utils;
-import com.flazr.util.ValueToEnum;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 
 public class Video extends DataMessage {
-
-    public static enum CodecType implements ValueToEnum.IntValue {
-
-        JPEG(1),
-        H263(2),
-        SCREEN(3),
-        ON2VP6(4),
-        ON2VP6_ALPHA(5),
-        SCREEN_V2(6),
-        AVC(7);
-
-        private final int value;
-
-        CodecType(final int value) {
-            this.value = value;
-        }
-
-        @Override
-        public int intValue() {
-            return value;
-        }
-
-        private static final ValueToEnum<CodecType> converter = new ValueToEnum<CodecType>(CodecType.values());
-
-        public static CodecType valueToEnum(final int value) {
-            return converter.valueToEnum(value);
-        }
-
-    }
 
     @Override
     public boolean isConfig() { // TODO now hard coded for avc1
