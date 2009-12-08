@@ -40,14 +40,14 @@ public class FlvWriter implements RtmpWriter {
     private int primaryChannel = -1;
     private int lastLoggedSeconds;
     private final int seekTime;
-    private final long startTime;
+    private final long startTime;  
 
     public FlvWriter(final String fileName) {
         this(0, fileName);
     }
 
     public FlvWriter(final int seekTime, final String fileName) {
-        this.seekTime = seekTime;
+        this.seekTime = seekTime < 0 ? 0 : seekTime;
         this.startTime = System.currentTimeMillis();
         if(fileName == null) {
             logger.info("save file notspecified, will only consume stream");
@@ -106,7 +106,7 @@ public class FlvWriter implements RtmpWriter {
                 logWriteProgress();
             }
         } else { // METADATA / AUDIO / VIDEO
-            final int channelId = header.getChannelId();                        
+            final int channelId = header.getChannelId();
             channelTimes[channelId] = seekTime + header.getTime();
             if(primaryChannel == -1 && (header.isAudio() || header.isVideo())) {
                 logger.info("first media packet for channel: {}", header);
@@ -123,6 +123,9 @@ public class FlvWriter implements RtmpWriter {
     }
 
     private void write(final FlvAtom flvAtom) {
+        if(logger.isDebugEnabled()) {
+            logger.debug("writing: {}", flvAtom);
+        }
         if(out == null) {
             return;
         }
