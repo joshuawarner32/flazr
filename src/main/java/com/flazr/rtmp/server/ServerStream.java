@@ -67,6 +67,10 @@ public class ServerStream {
         return publishType != null && publishType == PublishType.LIVE;
     }
 
+    public PublishType getPublishType() {
+        return publishType;
+    }
+
     public ChannelGroup getSubscribers() {
         return subscribers;
     }

@@ -25,6 +25,7 @@ import com.flazr.rtmp.message.Control;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.RtmpPublisher;
+import com.flazr.rtmp.RtmpWriter;
 import com.flazr.rtmp.message.Audio;
 import com.flazr.rtmp.message.Command;
 import com.flazr.rtmp.message.DataMessage;
@@ -71,6 +72,7 @@ public class ServerHandler extends SimpleChannelHandler {
 
     private RtmpPublisher publisher;    
     private ServerStream subscriberStream;
+    private RtmpWriter recorder;
 
     @Override
     public void channelOpen(final ChannelHandlerContext ctx, final ChannelStateEvent e) {
@@ -88,6 +90,9 @@ public class ServerHandler extends SimpleChannelHandler {
         logger.info("channel closed: {}", e);
         if(publisher != null) {
             publisher.close();
+        }
+        if(recorder != null) {
+            recorder.close();
         }
         unpublishIfLive();
     }
@@ -218,6 +223,9 @@ public class ServerHandler extends SimpleChannelHandler {
 
     private void broadcast(final RtmpMessage message) {
         subscriberStream.getSubscribers().write(message);
+        if(recorder != null) {
+            recorder.write(message);
+        }
     }
 
     private void writeToStream(final Channel channel, final RtmpMessage message) {
@@ -335,26 +343,38 @@ public class ServerHandler extends SimpleChannelHandler {
     private void publishResponse(final Channel channel, final Command command) {
         if(command.getArgCount() > 1) { // publish
             final String streamName = (String) command.getArg(0);
-            final String publishType = (String) command.getArg(1);
-            logger.info("publish, stream name: {}, type: {}", streamName, publishType);            
-            subscriberStream = application.getStream(streamName, publishType); // TODO append, record
+            final String publishTypeString = (String) command.getArg(1);
+            logger.info("publish, stream name: {}, type: {}", streamName, publishTypeString);
+            subscriberStream = application.getStream(streamName, publishTypeString); // TODO append, record
             if(subscriberStream.getPublisher() != null) {
                 logger.info("disconnecting publisher client, stream already in use");
                 ChannelFuture future = channel.write(Command.publishBadName(streamId));
                 future.addListener(ChannelFutureListener.CLOSE);
                 return;
             }
-            subscriberStream.setPublisher(channel);
-            logger.info("created server side live stream: {}", subscriberStream);
+            subscriberStream.setPublisher(channel);            
             channel.write(Command.publishStart(streamName, clientId, streamId));
             channel.write(new ChunkSize(4096));
             channel.write(Control.streamBegin(streamId));
-            final ChannelGroup subscribers = subscriberStream.getSubscribers();
-            subscribers.write(Command.publishNotify(streamId));
-            writeToStream(subscribers, Video.empty());
-            writeToStream(subscribers, Metadata.rtmpSampleAccess());
-            writeToStream(subscribers, Audio.empty());
-            writeToStream(subscribers, Metadata.dataStart());            
+            final ServerStream.PublishType publishType = subscriberStream.getPublishType();
+            logger.info("created publish stream: {}", subscriberStream);
+            switch(publishType) {
+                case LIVE:
+                    final ChannelGroup subscribers = subscriberStream.getSubscribers();
+                    subscribers.write(Command.publishNotify(streamId));
+                    writeToStream(subscribers, Video.empty());
+                    writeToStream(subscribers, Metadata.rtmpSampleAccess());
+                    writeToStream(subscribers, Audio.empty());
+                    writeToStream(subscribers, Metadata.dataStart());
+                    break;
+                case RECORD:
+                    recorder = application.getWriter(streamName);
+                    break;
+                case APPEND:
+                    logger.warn("append not implemented yet, un-publishing...");
+                    unpublishIfLive();
+                    break;
+            }
         } else { // un-publish
             final boolean publish = (Boolean) command.getArg(0);
             if(!publish) {
@@ -380,6 +400,10 @@ public class ServerHandler extends SimpleChannelHandler {
             subscriberStream.getSubscribers().write(Command.unpublishNotify(streamId));
             subscriberStream.setPublisher(null);
             logger.debug("publisher disconnected, stream un-published");
+        }
+        if(recorder != null) {
+            recorder.close();
+            recorder = null;
         }
     }
 

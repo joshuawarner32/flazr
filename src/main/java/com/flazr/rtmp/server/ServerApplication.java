@@ -21,8 +21,10 @@ package com.flazr.rtmp.server;
 
 import com.flazr.io.f4v.F4vReader;
 import com.flazr.io.flv.FlvReader;
+import com.flazr.io.flv.FlvWriter;
 import com.flazr.rtmp.RtmpConfig;
 import com.flazr.rtmp.RtmpReader;
+import com.flazr.rtmp.RtmpWriter;
 import com.flazr.util.Utils;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,6 +67,12 @@ public class ServerApplication {
             logger.info("reader creation failed: {}", e.getMessage());
             return null;
         }
+    }
+
+    public RtmpWriter getWriter(final String rawName) {
+        final String streamName = Utils.trimSlashes(rawName);
+        final String path = RtmpConfig.SERVER_HOME_DIR + "/apps/" + name + "/";
+        return new FlvWriter(path + streamName + ".flv");
     }
 
     public static ServerApplication get(final String rawName) {
