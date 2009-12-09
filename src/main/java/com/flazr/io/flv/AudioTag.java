@@ -88,10 +88,10 @@ public class AudioTag {
 
     public static enum SampleRate implements ValueToEnum.IntValue {
 
-        KHZ_5_5(0),
+        KHZ_5(0),
         KHZ_11(1),
         KHZ_22(2),
-        KHZ_33(3);
+        KHZ_44(3);
 
         private final int value;
 
