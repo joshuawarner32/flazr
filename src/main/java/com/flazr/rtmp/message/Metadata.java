@@ -180,8 +180,8 @@ public abstract class Metadata extends AbstractMessage {
             );
             VideoSD video = movie.getVideoSampleDescription();
             map(map,
-                pair("width", video.getWidth()),
-                pair("height", video.getHeight()),
+                pair("width", (double) video.getWidth()),
+                pair("height", (double) video.getHeight()),
                 pair("videocodecid", sampleType)
             );
         }
