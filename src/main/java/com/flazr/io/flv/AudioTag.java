@@ -28,11 +28,17 @@ public class AudioTag {
     private boolean sampleSize16Bit;
     private boolean stereo;    
 
-    public AudioTag(byte byteValue) {
-        format = Format.valueToEnum(byteValue >> 4);
-        sampleRate = SampleRate.valueToEnum((0x0F & byteValue) >> 2);
-        sampleSize16Bit = (0x02 & byteValue) > 0;
-        stereo = (0x01 & byteValue) > 0;
+    public AudioTag(final byte byteValue) {
+        final int unsigned = 0xFF & byteValue;
+        format = Format.valueToEnum(unsigned >> 4);
+        sampleSize16Bit = (0x02 & unsigned) > 0;
+        if(format == Format.AAC) {
+            sampleRate = SampleRate.KHZ_44;
+            stereo = true;
+            return;
+        }
+        sampleRate = SampleRate.valueToEnum((0x0F & unsigned) >> 2);
+        stereo = (0x01 & unsigned) > 0;
     }
 
     public Format getFormat() {

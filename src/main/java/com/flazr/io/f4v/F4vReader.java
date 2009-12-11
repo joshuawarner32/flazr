@@ -40,7 +40,7 @@ public class F4vReader implements RtmpReader {
 
     private static final Logger logger = LoggerFactory.getLogger(F4vReader.class);
 
-    private static final byte[] MP4A_BEGIN = Utils.fromHex("af0013100000");
+    private static final byte[] MP4A_BEGIN = Utils.fromHex("af0013100000"); // TODO now hard coded
     private static final byte[] MP4A_PREFIX = Utils.fromHex("af01");
     private static final byte[] AVC1_BEGIN_PREFIX = Utils.fromHex("1700000000");
     private static final byte[] AVC1_PREFIX_KEYFRAME = Utils.fromHex("1701");

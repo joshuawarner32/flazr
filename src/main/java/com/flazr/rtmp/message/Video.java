@@ -36,7 +36,7 @@ public class Video extends DataMessage {
     }
 
     public Video(final byte[] ... bytes) {
-        data = ChannelBuffers.wrappedBuffer(bytes);
+        super(bytes);
     }
 
     public Video(final int time, final byte[] prefix, final int compositionOffset, final byte[] videoData) {

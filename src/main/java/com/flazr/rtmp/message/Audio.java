@@ -35,7 +35,7 @@ public class Audio extends DataMessage {
     }
 
     public Audio(final byte[] ... bytes) {
-        data = ChannelBuffers.wrappedBuffer(bytes);
+        super(bytes);
     }
 
     public Audio(final int time, final byte[] prefix, final byte[] audioData) {

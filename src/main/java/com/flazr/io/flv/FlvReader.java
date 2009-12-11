@@ -26,6 +26,7 @@ import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.message.Aggregate;
 import com.flazr.rtmp.message.MessageType;
 import com.flazr.rtmp.message.Metadata;
+import com.flazr.rtmp.message.MetadataAmf0;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.slf4j.Logger;
@@ -44,8 +45,17 @@ public class FlvReader implements RtmpReader {
         in = new FileChannelReader(path);
         in.position(13); // skip flv header
         final RtmpMessage metadataAtom = next();
-        metadata = (Metadata) MessageType.decode(metadataAtom.getHeader(), metadataAtom.encode());
-        mediaStartPosition = in.position();
+        final RtmpMessage metadataTemp = 
+                MessageType.decode(metadataAtom.getHeader(), metadataAtom.encode());
+        if(metadataTemp.getHeader().isMetadata()) {
+            metadata = (Metadata) metadataTemp;
+            mediaStartPosition = in.position();
+        } else {
+            logger.warn("flv file does not start with 'onMetaData', using empty one");
+            metadata = new MetadataAmf0("onMetaData");
+            in.position(13);
+            mediaStartPosition = 13;
+        }
         logger.debug("flv file metadata: {}", metadata);
     }
 

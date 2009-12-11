@@ -32,6 +32,11 @@ public abstract class DataMessage extends AbstractMessage {
         super();
     }
 
+    public DataMessage(final byte[] ... bytes) {
+        data = ChannelBuffers.wrappedBuffer(bytes);
+        header.setSize(data.readableBytes());
+    }
+
     public DataMessage(final RtmpHeader header, final ChannelBuffer in) {
         super(header, in);
     }
