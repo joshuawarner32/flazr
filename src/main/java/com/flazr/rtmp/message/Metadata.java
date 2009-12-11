@@ -39,6 +39,7 @@ public abstract class Metadata extends AbstractMessage {
     public Metadata(String name, Object... data) {
         this.name = name;
         this.data = data;
+        header.setSize(encode().readableBytes());
     }
 
     public Metadata(RtmpHeader header, ChannelBuffer in) {
