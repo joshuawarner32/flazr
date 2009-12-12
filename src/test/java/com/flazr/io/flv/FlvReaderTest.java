@@ -8,13 +8,19 @@ import com.flazr.rtmp.message.MessageType;
 import com.flazr.rtmp.message.MetadataAmf0;
 import com.flazr.rtmp.message.Video;
 import com.flazr.util.Utils;
+import java.io.File;
 import org.junit.Test;
 
 public class FlvReaderTest {
-    
-    private static final String FILE_NAME = "test.flv";
+
+    private static final String FILE_PATH = "target/temp";
+    private static final String FILE_NAME = FILE_PATH + "/test.flv";
 
     private void writeFile(final boolean withMetadata) {
+        File temp = new File(FILE_PATH);
+        if(!temp.exists()) {
+            temp.mkdir();
+        }
         FlvWriter writer = new FlvWriter(FILE_NAME);
         if(withMetadata) {
             writer.write(new MetadataAmf0("onMetaData"));
