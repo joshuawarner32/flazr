@@ -64,7 +64,30 @@ public class RtmpConfig {
 
     private static void configure(Type type) {
         Utils.printlnCopyrightNotice();
-        File propsFile = new File("conf/flazr.properties");
+        String flazrHome = null;
+        final InputStream is = RtmpConfig.class.getResourceAsStream("/flazr-init.properties");
+        if(is != null) {
+            logger.info("flazr-init.properties found on classpath");
+            final Properties flazrProps = loadProps(is);
+            flazrHome = flazrProps.getProperty("flazr.home");
+            if(flazrHome == null) {
+                logger.warn("'flazr.home' key not found, will try system properties");
+            }
+        } else {
+            logger.warn("flazr-init.properties not found on classpath, will try system property 'flazr.home'");
+        }
+        if(flazrHome == null) {
+            flazrHome = System.getProperty("flazr.home");
+        }
+        if(flazrHome == null) {        
+            File currentDir = new File("");
+            logger.warn("'flazr.home' system property not set, will use current directory: {}", currentDir.getAbsolutePath());
+            flazrHome = "";
+        } else if(!flazrHome.endsWith("/")) {
+            flazrHome = flazrHome + "/";
+            logger.info("using 'flazr.home' = {}", flazrHome);
+        }
+        File propsFile = new File(flazrHome + "conf/flazr.properties");
         if(!propsFile.exists()) {
             logger.warn("{} not found, will use configuration defaults", propsFile.getAbsolutePath());
         } else {
@@ -128,15 +151,20 @@ public class RtmpConfig {
     }
 
     private static Properties loadProps(final File file) {
-        InputStream is = null;
+        try {
+            final InputStream is = new FileInputStream(file);
+            final Properties props = loadProps(is);
+            is.close();
+            return props;
+        } catch(Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Properties loadProps(final InputStream is) {
         final Properties props = new Properties();
         try {
-            try {
-                is = new FileInputStream(file);
-                props.load(is);
-            } finally {
-                is.close();
-            }
+            props.load(is);
         } catch(Exception e) {
             throw new RuntimeException(e);
         }
