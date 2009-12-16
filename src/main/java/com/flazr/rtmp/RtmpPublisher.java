@@ -42,6 +42,7 @@ public abstract class RtmpPublisher {
     private final Timer timer;
     private final int timerTickSize;
     private final boolean usingSharedTimer;
+    private final boolean aggregateModeEnabled;
 
     private final RtmpReader reader;
     private int streamId;
@@ -67,7 +68,9 @@ public abstract class RtmpPublisher {
 
     }
 
-    public RtmpPublisher(final RtmpReader reader, final int streamId, final int bufferDuration, boolean useSharedTimer) {
+    public RtmpPublisher(final RtmpReader reader, final int streamId, final int bufferDuration, 
+            boolean useSharedTimer, boolean aggregateModeEnabled) {
+        this.aggregateModeEnabled = aggregateModeEnabled;
         this.usingSharedTimer = useSharedTimer;
         if(useSharedTimer) {
             timer = RtmpServer.TIMER;
@@ -171,7 +174,7 @@ public abstract class RtmpPublisher {
         final long elapsedTime = System.currentTimeMillis() - startTime;
         final long elapsedTimePlusSeek = elapsedTime + seekTime;
         final double clientBuffer = timePosition - elapsedTimePlusSeek;
-        if(usingSharedTimer && clientBuffer > timerTickSize) { // TODO cleanup
+        if(aggregateModeEnabled && clientBuffer > timerTickSize) { // TODO cleanup
             reader.setAggregateDuration((int) clientBuffer);
         } else {
             reader.setAggregateDuration(0);

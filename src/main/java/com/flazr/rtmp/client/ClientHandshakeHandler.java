@@ -38,7 +38,7 @@ public class ClientHandshakeHandler extends FrameDecoder implements ChannelDowns
     private static final Logger logger = LoggerFactory.getLogger(ClientHandshakeHandler.class);
 
     private boolean rtmpe;
-    private RtmpHandshake handshake;
+    private final RtmpHandshake handshake;
     private boolean handshakeDone;
 
     public ClientHandshakeHandler(ClientOptions options) {

@@ -74,6 +74,12 @@ public class ServerHandler extends SimpleChannelHandler {
     private ServerStream subscriberStream;
     private RtmpWriter recorder;
 
+    private boolean aggregateModeEnabled = true;
+
+    public void setAggregateModeEnabled(boolean aggregateModeEnabled) {
+        this.aggregateModeEnabled = aggregateModeEnabled;
+    }
+
     @Override
     public void channelOpen(final ChannelHandlerContext ctx, final ChannelStateEvent e) {
         RtmpServer.CHANNELS.add(e.getChannel());
@@ -202,6 +208,9 @@ public class ServerHandler extends SimpleChannelHandler {
             default:
             logger.warn("ignoring message: {}", message);
         }
+        if(publisher != null && publisher.isStarted()) {
+            publisher.fireNext(channel, 0);
+        }
     }
 
     //==========================================================================
@@ -296,7 +305,7 @@ public class ServerHandler extends SimpleChannelHandler {
                 channel.write(Command.playFailed(playName, clientId));
                 return;
             }
-            publisher = new RtmpPublisher(reader, streamId, bufferDuration, true) {
+            publisher = new RtmpPublisher(reader, streamId, bufferDuration, true, aggregateModeEnabled) {
                 @Override protected RtmpMessage[] getStopMessages(long timePosition) {
                     return new RtmpMessage[] {
                         Metadata.onPlayStatus(timePosition / 1000, bytesWritten),

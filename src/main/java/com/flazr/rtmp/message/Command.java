@@ -124,15 +124,13 @@ public abstract class Command extends AbstractMessage {
     }
 
     public static Command connectSuccess(int transactionId) {
-        Amf0Object object = object(
+        Map<String, Object> object = onStatus(OnStatus.STATUS,
+            "NetConnection.Connect.Success", "Connection succeeded.",            
             pair("fmsVer", "FMS/3,5,1,516"),
             pair("capabilities", 31.0),
-            pair("mode", 1.0));
-        Map<String, Object> arg = onStatus(OnStatus.STATUS,
-            "NetConnection.Connect.Success", "Connection succeeded.",
-            pair("objectEncoding", 0.0), 
-            pair("data", map(pair("version", "3,5,1,516"))));
-        return new CommandAmf0(transactionId, "_result", object, arg);
+            pair("mode", 1.0),
+            pair("objectEncoding", 0.0));
+        return new CommandAmf0(transactionId, "_result", null, object);
     }
 
     public static Command createStream() {

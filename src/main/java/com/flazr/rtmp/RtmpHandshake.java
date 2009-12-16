@@ -158,6 +158,7 @@ public class RtmpHandshake {
     //==========================================================================
     
     private KeyAgreement keyAgreement;
+    private byte[] peerVersion;
     private byte[] ownPublicKey;
     private byte[] peerPublicKey;
     private byte[] ownPartOneDigest;
@@ -201,6 +202,10 @@ public class RtmpHandshake {
 
     public boolean isRtmpe() {
         return rtmpe;
+    }
+
+    public byte[] getPeerVersion() {
+        return peerVersion;
     }
 
     //========================= ENCRYPT / DECRYPT ==============================
@@ -432,10 +437,10 @@ public class RtmpHandshake {
     public boolean decodeClient1(ChannelBuffer in) {
         peerTime = new byte[4];
         in.getBytes(0, peerTime);
-        byte[] clientVersion = new byte[4];
-        in.getBytes(4, clientVersion);
-        logger.debug("client time: {}, version: {}", Utils.toHex(peerTime), Utils.toHex(clientVersion));
-        validationType = getValidationTypeForClientVersion(clientVersion);
+        peerVersion = new byte[4];
+        in.getBytes(4, peerVersion);
+        logger.debug("client time: {}, version: {}", Utils.toHex(peerTime), Utils.toHex(peerVersion));
+        validationType = getValidationTypeForClientVersion(peerVersion);
         if(validationType == 0) {
             peerPartOne = in; // save for later
             return true;
