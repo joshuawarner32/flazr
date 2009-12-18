@@ -167,8 +167,9 @@ public class ServerHandler extends SimpleChannelHandler {
                     publishResponse(channel, command);
                 } else {
                     logger.warn("ignoring command: {}", command);
+                    fireNext(channel);
                 }
-                break;
+                return; // NOT break
             case METADATA_AMF0:
             case METADATA_AMF3:
                 final Metadata meta = (Metadata) message;
@@ -208,7 +209,11 @@ public class ServerHandler extends SimpleChannelHandler {
             default:
             logger.warn("ignoring message: {}", message);
         }
-        if(publisher != null && publisher.isStarted()) {
+        fireNext(channel);
+    }
+
+    private void fireNext(final Channel channel) {
+        if(publisher != null && publisher.isStarted() && !publisher.isPaused()) {
             publisher.fireNext(channel, 0);
         }
     }
