@@ -35,6 +35,8 @@ public interface BufferReader {
 
     int readInt();
 
+    long readUnsignedInt();
+
     void close();
 
 }

@@ -37,7 +37,7 @@ public class Box {
     private Payload payload;
 
     public Box(final BufferReader in, final long endPos) {
-        final int boxSize = in.readInt();
+        final long boxSize = in.readUnsignedInt();
         final byte[] typeBytes = in.readBytes(4);
         type = BoxType.parse(new String(typeBytes));        
         final long payloadSize;

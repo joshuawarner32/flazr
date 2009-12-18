@@ -171,7 +171,7 @@ public class F4vReader implements RtmpReader {
     }   
 
     public static void main(String[] args) {
-        F4vReader reader = new F4vReader("test.m4v");
+        F4vReader reader = new F4vReader("test2.5.mp4");
         while(reader.hasNext()) {
             logger.debug("read: {}", reader.next());
         }

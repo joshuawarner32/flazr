@@ -85,6 +85,11 @@ public class FileChannelReader implements BufferReader {
     }
 
     @Override
+    public long readUnsignedInt() {
+        return read(4).readUnsignedInt();
+    }
+
+    @Override
     public byte[] readBytes(final int size) {
         final byte[] bytes = new byte[size];
         final ByteBuffer bb = ByteBuffer.wrap(bytes);

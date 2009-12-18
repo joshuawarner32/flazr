@@ -93,6 +93,11 @@ public class RandomAccessFileReader implements BufferReader {
     }
 
     @Override
+    public long readUnsignedInt() {
+        return read(4).readUnsignedInt();
+    }
+
+    @Override
     public void close() {
         try {
             in.close();
