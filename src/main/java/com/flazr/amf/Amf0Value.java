@@ -83,6 +83,8 @@ public class Amf0Value {
                 return MAP;
             } else if (value instanceof Object[]) {
                 return ARRAY;
+            } else if(value instanceof Date) {
+                return DATE;
             } else {
                 throw new RuntimeException("unexpected type: " + value.getClass());
             }
@@ -133,6 +135,11 @@ public class Amf0Value {
                 for(Object o : array) {
                     encode(out, o);
                 }
+                return;
+            case DATE:
+                final long time = ((Date) value).getTime();
+                out.writeLong(Double.doubleToLongBits(time));
+                out.writeShort((short) 0);
                 return;
             default:
                 // ignoring other types client doesn't require for now
