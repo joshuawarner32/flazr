@@ -188,7 +188,6 @@ public abstract class RtmpPublisher {
         }
         timePosition = header.getTime();
         header.setStreamId(streamId);
-
         final ChannelFuture future = channel.write(message);
         future.addListener(new ChannelFutureListener() {
             @Override public void operationComplete(final ChannelFuture cf) {
@@ -209,6 +208,10 @@ public abstract class RtmpPublisher {
                 @Override public void run(Timeout timeout) {
                     if(logger.isDebugEnabled()) {
                         logger.debug("running after delay: {}", delay);
+                    }
+                    if(readyForNext.conversationId != currentConversationId) {
+                        logger.debug("pending 'next' event found obsolete, aborting");
+                        return;
                     }
                     Channels.fireMessageReceived(channel, readyForNext);
                 }
