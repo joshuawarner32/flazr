@@ -44,7 +44,7 @@ public class Box {
         if (boxSize == 1) { // extended
             final byte[] extBytes = in.readBytes(8);
             final BigInteger bigLen = new BigInteger(1, extBytes);
-            payloadSize = bigLen.intValue() - 16;
+            payloadSize = bigLen.longValue() - 16;
         } else if (boxSize == 0) { // decided by parent bound
             payloadSize = endPos - in.position();
         } else {
