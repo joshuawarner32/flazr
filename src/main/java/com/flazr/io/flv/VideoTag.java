@@ -23,8 +23,8 @@ import com.flazr.util.ValueToEnum;
 
 public class VideoTag {
 
-    private FrameType frameType;
-    private CodecType codecType;
+    private final FrameType frameType;
+    private final CodecType codecType;
 
     public VideoTag(final byte byteValue) {
         frameType = FrameType.valueToEnum(byteValue >> 4);

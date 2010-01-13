@@ -23,16 +23,16 @@ import com.flazr.util.ValueToEnum;
 
 public class AudioTag {
 
-    private Format format;
-    private SampleRate sampleRate;
-    private boolean sampleSize16Bit;
-    private boolean stereo;    
+    private final CodecType codecType;
+    private final SampleRate sampleRate;
+    private final boolean sampleSize16Bit;
+    private final boolean stereo;
 
     public AudioTag(final byte byteValue) {
         final int unsigned = 0xFF & byteValue;
-        format = Format.valueToEnum(unsigned >> 4);
+        codecType = CodecType.valueToEnum(unsigned >> 4);
         sampleSize16Bit = (0x02 & unsigned) > 0;
-        if(format == Format.AAC) {
+        if(codecType == CodecType.AAC) {
             sampleRate = SampleRate.KHZ_44;
             stereo = true;
             return;
@@ -41,8 +41,8 @@ public class AudioTag {
         stereo = (0x01 & unsigned) > 0;
     }
 
-    public Format getFormat() {
-        return format;
+    public CodecType getCodecType() {
+        return codecType;
     }
 
     public SampleRate getSampleRate() {
@@ -57,7 +57,7 @@ public class AudioTag {
         return stereo;
     }
 
-    public static enum Format implements ValueToEnum.IntValue {
+    public static enum CodecType implements ValueToEnum.IntValue {
 
         ADPCM(1),
         MP3(2),
@@ -75,7 +75,7 @@ public class AudioTag {
 
         private final int value;
 
-        Format(final int value) {
+        CodecType(final int value) {
             this.value = value;
         }
 
@@ -84,9 +84,9 @@ public class AudioTag {
             return value;
         }
 
-        private static final ValueToEnum<Format> converter = new ValueToEnum<Format>(Format.values());
+        private static final ValueToEnum<CodecType> converter = new ValueToEnum<CodecType>(CodecType.values());
 
-        public static Format valueToEnum(final int value) {
+        public static CodecType valueToEnum(final int value) {
             return converter.valueToEnum(value);
         }
 
@@ -121,7 +121,7 @@ public class AudioTag {
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();
-        sb.append("[format: ").append(format);
+        sb.append("[format: ").append(codecType);
         sb.append(", sampleRate: ").append(sampleRate);
         sb.append(", sampleSize16bit: ").append(sampleSize16Bit);
         sb.append(", stereo: ").append(stereo);

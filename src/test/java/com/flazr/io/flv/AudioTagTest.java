@@ -9,7 +9,7 @@ public class AudioTagTest {
     public void testParseMp3() {
         byte byteValue = 0x2a;
         AudioTag tag = new AudioTag(byteValue);
-        assertEquals(AudioTag.Format.MP3, tag.getFormat());
+        assertEquals(AudioTag.CodecType.MP3, tag.getCodecType());
         assertEquals(AudioTag.SampleRate.KHZ_22, tag.getSampleRate());
         assertTrue(tag.isSampleSize16Bit());
         assertFalse(tag.isStereo());
@@ -19,7 +19,7 @@ public class AudioTagTest {
     public void testParseAac() {
         byte byteValue = (byte) 0xaf;
         AudioTag tag = new AudioTag(byteValue);
-        assertEquals(AudioTag.Format.AAC, tag.getFormat());
+        assertEquals(AudioTag.CodecType.AAC, tag.getCodecType());
         assertEquals(AudioTag.SampleRate.KHZ_44, tag.getSampleRate());
         assertTrue(tag.isSampleSize16Bit());
         assertTrue(tag.isStereo());
