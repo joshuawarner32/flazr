@@ -25,10 +25,15 @@ import com.flazr.rtmp.RtmpWriter;
 import com.flazr.rtmp.server.ServerStream;
 import com.flazr.rtmp.server.ServerStream.PublishType;
 import com.flazr.util.Utils;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -67,6 +72,7 @@ public class ClientOptions {
     private int load = 1;
     private int loop = 1;
     private int threads = 10;
+    private List<ClientOptions> clientOptionsList;
 
     public static void main(String[] args) {
         ClientOptions co = new ClientOptions();
@@ -171,17 +177,18 @@ public class ClientOptions {
         options.addOption(new Option("record", "publish local file to server in 'record' mode"));
         options.addOption(new Option("append", "publish local file to server in 'append' mode"));
         options.addOption(OptionBuilder.withArgName("property=value").hasArgs(2)
-                .withValueSeparator().withDescription("add / over-ride connection param").create("D"));
+                .withValueSeparator().withDescription("add / override connection param").create("D"));
         options.addOption(OptionBuilder.withArgName("swf").hasArg()
                 .withDescription("path to (decompressed) SWF for verification").create("swf"));
         options.addOption(OptionBuilder.withArgName("version").hasArg()
                 .withDescription("client version to use in RTMP handshake (hex)").create("version"));
         options.addOption(OptionBuilder.withArgName("load").hasArg()
-                .withDescription("no. of client connections (server load testing)").create("load"));
+                .withDescription("no. of client connections (load testing)").create("load"));
         options.addOption(OptionBuilder.withArgName("loop").hasArg()
                 .withDescription("for publish mode, loop count").create("loop"));
         options.addOption(OptionBuilder.withArgName("threads").hasArg()
                 .withDescription("for load testing (load) mode, thread pool size").create("threads"));
+        options.addOption(new Option("file", "spawn connections listed in file (load testing)"));
         return options;
     }
 
@@ -193,7 +200,8 @@ public class ClientOptions {
             line = parser.parse(options, args);
             if(line.hasOption("help") || line.getArgs().length == 0) {
                 HelpFormatter formatter = new HelpFormatter();
-                formatter.printHelp("client [options] streamNameOrUrl [saveAs | fileToPublish]", options);
+                formatter.printHelp("client [options] name [saveAs | fileToPublish]"
+                        + "\n(name can be stream name, URL or load testing script file)", options);
                 return false;
             }
             if(line.hasOption("host")) {
@@ -255,11 +263,41 @@ public class ClientOptions {
             return false;
         }
         String[] actualArgs = line.getArgs();
-        Matcher matcher = URL_PATTERN.matcher(actualArgs[0]);
-        if (matcher.matches()) {
-            parseUrl(actualArgs[0]);
+        if(line.hasOption("file")) {
+            String fileName = actualArgs[0];
+            File file = new File(fileName);
+            if(!file.exists()) {
+                throw new RuntimeException("file does not exist: '" + fileName + "'");
+            }
+            logger.info("parsing file: {}", file);
+            try {
+                FileInputStream fis = new FileInputStream(file);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+                int i = 0;
+                String s;
+                clientOptionsList = new ArrayList<ClientOptions>();
+                while ((s = reader.readLine()) != null) {
+                    i++;
+                    logger.debug("parsing line {}: {}", i, s);
+                    String[] tempArgs = s.split("\\s");
+                    ClientOptions tempOptions = new ClientOptions();
+                    if(!tempOptions.parseCli(tempArgs)) {
+                        throw new RuntimeException("aborting, parsing failed at line " + i);
+                    }
+                    clientOptionsList.add(tempOptions);
+                }
+                reader.close();
+                fis.close();
+            } catch(Exception e) {
+                throw new RuntimeException(e);
+            }
         } else {
-            streamName = actualArgs[0];
+            Matcher matcher = URL_PATTERN.matcher(actualArgs[0]);
+            if (matcher.matches()) {
+                parseUrl(actualArgs[0]);
+            } else {
+                streamName = actualArgs[0];
+            }
         }
         if(publishType != null) {
             if(actualArgs.length < 2) {
@@ -462,6 +500,10 @@ public class ClientOptions {
 
     public void setWriterToSave(RtmpWriter writerToSave) {
         this.writerToSave = writerToSave;
+    }
+
+    public List<ClientOptions> getClientOptionsList() {
+        return clientOptionsList;
     }
 
     @Override

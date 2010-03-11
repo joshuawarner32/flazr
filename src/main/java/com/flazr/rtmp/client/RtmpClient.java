@@ -42,21 +42,42 @@ public class RtmpClient {
         }
         Utils.printlnCopyrightNotice();
         final int count = options.getLoad();
-        if(count == 1) {
+        if(count == 1 && options.getClientOptionsList() == null) {
             connect(options);
             return;
         }
+        //======================================================================
+        final Executor executor = Executors.newFixedThreadPool(options.getThreads());
+        if(options.getClientOptionsList() != null) {
+            logger.info("file driven load testing mode, lines: {}", options.getClientOptionsList().size());
+            int line = 0;
+            for(final ClientOptions tempOptions : options.getClientOptionsList()) {
+                line++;
+                logger.info("running line #{}", line);
+                for(int i = 0; i < tempOptions.getLoad(); i++) {
+                    final int index = i + 1;
+                    final int tempLine = line;
+                    executor.execute(new Runnable() {
+                        @Override public void run() {                            
+                            final ClientBootstrap bootstrap = getBootstrap(executor, tempOptions);
+                            bootstrap.connect(new InetSocketAddress(tempOptions.getHost(), tempOptions.getPort()));
+                            logger.info("line #{}, spawned connection #{}", tempLine + 1, index);
+                        }
+                    });
+                }
+            }
+            return;
+        }
+        //======================================================================
+        final ClientBootstrap bootstrap = getBootstrap(executor, options);
         logger.info("load testing mode, no. of connections to create: {}", count);
         options.setSaveAs(null);
-        final Executor executor = Executors.newFixedThreadPool(options.getThreads());        
-        final ClientBootstrap bootstrap = getBootstrap(executor, options);
         for(int i = 0; i < count; i++) {
             final int index = i + 1;
             executor.execute(new Runnable() {
-                @Override public void run() {
-                    logger.info(">> spawning connection #{}", index);
+                @Override public void run() {                    
                     bootstrap.connect(new InetSocketAddress(options.getHost(), options.getPort()));
-                    logger.info("<< spawned connection #{}", index);
+                    logger.info("spawned connection #{}", index);
                 }
             });
         }
