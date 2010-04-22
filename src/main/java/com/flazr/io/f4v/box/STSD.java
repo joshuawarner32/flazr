@@ -114,18 +114,18 @@ public class STSD implements Payload {
         private short compressionId;
         private short packetSize;
         private int sampleRate;
-		private int samplesPerPacket;
-		private int bytesPerPacket;
-		private int bytesPerFrame;
-		private int samplesPerFrame;
-		private MP4Descriptor mp4Descriptor;
+        private int samplesPerPacket;
+        private int bytesPerPacket;
+        private int bytesPerFrame;
+        private int samplesPerFrame;
+        private MP4Descriptor mp4Descriptor;
 
         public AudioSD(ChannelBuffer in) {
             read(in);
         }
 
         public byte[] getConfigBytes() {
-        	return mp4Descriptor.getConfigBytes();
+            return mp4Descriptor.getConfigBytes();
         }
         
         @Override
@@ -182,6 +182,8 @@ public class STSD implements Payload {
         }
 
     }
+
+    //==========================================================================
 
     public static class VideoSD implements Payload {
 
@@ -295,8 +297,6 @@ public class STSD implements Payload {
             return sb.toString();
         }
 
-    }
-
-    //==========================================================================
+    }    
     
 }
