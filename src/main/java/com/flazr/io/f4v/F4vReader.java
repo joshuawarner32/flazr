@@ -40,13 +40,14 @@ public class F4vReader implements RtmpReader {
 
     private static final Logger logger = LoggerFactory.getLogger(F4vReader.class);
 
-    private static final byte[] MP4A_BEGIN = Utils.fromHex("af0013100000"); // TODO now hard coded
+    private static final byte[] MP4A_BEGIN_PREFIX = Utils.fromHex("af00");
     private static final byte[] MP4A_PREFIX = Utils.fromHex("af01");
     private static final byte[] AVC1_BEGIN_PREFIX = Utils.fromHex("1700000000");
     private static final byte[] AVC1_PREFIX_KEYFRAME = Utils.fromHex("1701");
     private static final byte[] AVC1_PREFIX = Utils.fromHex("2701");
 
     private byte[] AVC1_BEGIN;
+    private byte[] MP4A_BEGIN;
 
     private final BufferReader in;
     private final List<Sample> samples;
@@ -60,6 +61,7 @@ public class F4vReader implements RtmpReader {
         final MovieInfo movie = new MovieInfo(in);
         in.position(0);
         AVC1_BEGIN = movie.getVideoDecoderConfig();
+        MP4A_BEGIN = movie.getAudioDecoderConfig();
         logger.debug("video decoder config inited: {}", Utils.toHex(AVC1_BEGIN));
         metadata = Metadata.onMetaData(movie);
         samples = movie.getSamples();
@@ -76,7 +78,7 @@ public class F4vReader implements RtmpReader {
         return new RtmpMessage[] {
             getMetadata(),
             new Video(AVC1_BEGIN_PREFIX, AVC1_BEGIN),
-            new Audio(MP4A_BEGIN)
+            new Audio(MP4A_BEGIN_PREFIX, MP4A_BEGIN)
         };
     }
 

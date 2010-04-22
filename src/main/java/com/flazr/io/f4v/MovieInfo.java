@@ -22,6 +22,7 @@ package com.flazr.io.f4v;
 import com.flazr.io.BufferReader;
 import com.flazr.io.f4v.box.FTYP;
 import com.flazr.io.f4v.box.MVHD;
+import com.flazr.io.f4v.box.STSD.AudioSD;
 import com.flazr.io.f4v.box.STSD.VideoSD;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -121,6 +122,18 @@ public class MovieInfo {
             }
         }
         return null;
+    }
+
+    public byte[] getAudioDecoderConfig() {
+        return getAudioSampleDescription().getConfigBytes();
+    }
+
+    public AudioSD getAudioSampleDescription() {
+        TrackInfo track = getAudioTrack();
+        if(track == null) {
+            return null;
+        }
+        return (AudioSD) track.getStsd().getSampleDescription(1);
     }
 
 }

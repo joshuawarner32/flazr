@@ -19,16 +19,17 @@
 
 package com.flazr.io.f4v.box;
 
-import com.flazr.io.f4v.*;
-import com.flazr.util.Utils;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
+import com.flazr.io.f4v.Payload;
+import com.flazr.io.f4v.SampleType;
+import com.flazr.util.Utils;
 
 public class STSD implements Payload {
 
@@ -104,30 +105,48 @@ public class STSD implements Payload {
 
     public static class AudioSD implements Payload {
 
-        private short index;
-        private int reserved1;
-        private int reserved2;
+    	private short index;
+        private short innerVersion;
+        private short revisionLevel;
+        private int vendor;
         private short channelCount;
         private short sampleSize;
-        private short preDefined;
-        private short reserved3;
+        private short compressionId;
+        private short packetSize;
         private int sampleRate;
+		private int samplesPerPacket;
+		private int bytesPerPacket;
+		private int bytesPerFrame;
+		private int samplesPerFrame;
+		private MP4Descriptor mp4Descriptor;
 
         public AudioSD(ChannelBuffer in) {
             read(in);
         }
 
+        public byte[] getConfigBytes() {
+        	return mp4Descriptor.getConfigBytes();
+        }
+        
         @Override
         public void read(ChannelBuffer in) {
             in.skipBytes(6); // reserved
             index = in.readShort();
-            reserved1 = in.readInt();
-            reserved2 = in.readInt();
+            innerVersion = in.readShort();
+            revisionLevel = in.readShort();
+            vendor = in.readInt();
             channelCount = in.readShort();
             sampleSize = in.readShort();
-            preDefined = in.readShort();
-            reserved3 = in.readShort();
+            compressionId = in.readShort();
+            packetSize = in.readShort();
             sampleRate = in.readInt();
+            if (innerVersion != 0) {
+            	samplesPerPacket = in.readInt();
+            	bytesPerPacket = in.readInt();
+            	bytesPerFrame = in.readInt();
+            	samplesPerFrame = in.readInt();
+            }
+            mp4Descriptor = new MP4Descriptor(in);
         }
 
         @Override
@@ -135,13 +154,20 @@ public class STSD implements Payload {
             ChannelBuffer out = ChannelBuffers.dynamicBuffer();
             out.writeBytes(new byte[6]);
             out.writeShort(index);
-            out.writeInt(reserved1);
-            out.writeInt(reserved2);
+            out.writeShort(innerVersion);
+            out.writeShort(revisionLevel);
+            out.writeInt(vendor);
             out.writeShort(channelCount);
             out.writeShort(sampleSize);
-            out.writeShort(preDefined);
-            out.writeShort(reserved3);
+            out.writeShort(compressionId);
+            out.writeShort(packetSize);
             out.writeInt(sampleRate);
+            if (innerVersion != 0) {
+            	out.writeInt(samplesPerPacket);
+            	out.writeInt(bytesPerPacket);
+            	out.writeInt(bytesPerFrame);
+            	out.writeInt(samplesPerFrame);
+            }
             return out;
         }
 
