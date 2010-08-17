@@ -80,7 +80,10 @@ public class RtmpEncoder extends SimpleChannelDownstreamHandler {
             } else {
                 header.setDeltaTime(deltaTime);
             }
-        } // else will be default LARGE
+        } else {
+			// otherwise force to LARGE
+            header.setHeaderType(RtmpHeader.Type.LARGE);
+        }
         channelPrevHeaders[channelId] = header;        
         if(logger.isDebugEnabled()) {
             logger.debug(">> {}", message);

@@ -25,6 +25,8 @@ import java.util.List;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ServerStream {
 
@@ -50,6 +52,8 @@ public class ServerStream {
     private final List<RtmpMessage> configMessages;
     private Channel publisher;
 
+    private static final Logger logger = LoggerFactory.getLogger(ServerStream.class);
+
     public ServerStream(final String rawName, final String typeString) {        
         this.name = Utils.trimSlashes(rawName).toLowerCase();
         if(typeString != null) {
@@ -60,7 +64,8 @@ public class ServerStream {
             this.publishType = null;
             subscribers = null;
             configMessages = null;
-        }        
+        }
+        logger.info("Created ServerStream {}", this);
     }
 
     public boolean isLive() {
