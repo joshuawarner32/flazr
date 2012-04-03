@@ -41,6 +41,7 @@ public class RtmpClient {
             return;
         }
         Utils.printlnCopyrightNotice();
+        System.out.println(options);
         final int count = options.getLoad();
         if(count == 1 && options.getClientOptionsList() == null) {
             connect(options);

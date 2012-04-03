@@ -46,11 +46,9 @@ public abstract class RtmpPublisher {
 
     private final RtmpReader reader;
     private int streamId;
-    private long startTime;    
-    private long seekTime;
+    private long startTime;
     private long timePosition;
-    private int currentConversationId;    
-    private int playLength = -1;
+    private int currentConversationId;
     private boolean paused;
     private int bufferDuration;
 
@@ -120,23 +118,17 @@ public abstract class RtmpPublisher {
         return false;
     }
 
-    public void start(final Channel channel, final int seekTime, final int playLength, final RtmpMessage ... messages) {
-        this.playLength = playLength;
-        start(channel, seekTime, messages);
+    public void seek(long timePosition) {
+        this.timePosition = reader.seek(timePosition);
     }
 
-    public void start(final Channel channel, final int seekTimeRequested, final RtmpMessage ... messages) {
+    public void start(final Channel channel, final RtmpMessage ... messages) {
         paused = false;
         currentConversationId++;
-        startTime = System.currentTimeMillis();        
-        if(seekTimeRequested >= 0) {
-            seekTime = reader.seek(seekTimeRequested);
-        } else {
-            seekTime = 0;
-        }
-        timePosition = seekTime;
-        logger.debug("publish start, seek requested: {} actual seek: {}, play length: {}, conversation: {}",
-                new Object[]{seekTimeRequested, seekTime, playLength, currentConversationId});
+        startTime = System.currentTimeMillis();
+        timePosition = 0;
+        logger.debug("publish start, conversation: {}",
+                new Object[]{currentConversationId});
         for(final RtmpMessage message : messages) {
             writeToStream(channel, message);
         }
@@ -167,13 +159,12 @@ public abstract class RtmpPublisher {
                 message = null;
             }
         } //====================================================================
-        if (message == null || playLength >= 0 && timePosition > (seekTime + playLength)) {
+        if (message == null) {
             stop(channel);
             return;
         }
         final long elapsedTime = System.currentTimeMillis() - startTime;
-        final long elapsedTimePlusSeek = elapsedTime + seekTime;
-        final double clientBuffer = timePosition - elapsedTimePlusSeek;
+        final double clientBuffer = timePosition - elapsedTime;
         if(aggregateModeEnabled && clientBuffer > timerTickSize) { // TODO cleanup
             reader.setAggregateDuration((int) clientBuffer);
         } else {
@@ -184,7 +175,7 @@ public abstract class RtmpPublisher {
         final long delay = (long) ((header.getTime() - timePosition) * compensationFactor);
         if(logger.isDebugEnabled()) {
             logger.debug("elapsed: {}, streamed: {}, buffer: {}, factor: {}, delay: {}",
-                    new Object[]{elapsedTimePlusSeek, timePosition, clientBuffer, compensationFactor, delay});
+                    new Object[]{elapsedTime, timePosition, clientBuffer, compensationFactor, delay});
         }
         timePosition = header.getTime();
         header.setStreamId(streamId);
@@ -229,8 +220,8 @@ public abstract class RtmpPublisher {
     private void stop(final Channel channel) {
         currentConversationId++;
         final long elapsedTime = System.currentTimeMillis() - startTime;
-        logger.info("finished, start: {}, elapsed {}, streamed: {}",
-                new Object[]{seekTime / 1000, elapsedTime / 1000, (timePosition - seekTime) / 1000});
+        logger.info("finished, elapsed {}, streamed: {}",
+                new Object[]{elapsedTime / 1000, timePosition / 1000});
         for(RtmpMessage message : getStopMessages(timePosition)) {
             writeToStream(channel, message);
         }

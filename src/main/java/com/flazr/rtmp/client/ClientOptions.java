@@ -57,12 +57,11 @@ public class ClientOptions {
     private String appName = "vod";
     private String streamName;
     private String fileToPublish;
-    private RtmpReader readerToPublish;
     private RtmpWriter writerToSave;
     private String saveAs;    
     private boolean rtmpe;
     private Map<String, Object> params;
-    private Object[] args;
+    private Object[] connectArgs;
     private byte[] clientVersionToUse;
     private int start = -2;
     private int length = -1;
@@ -73,15 +72,6 @@ public class ClientOptions {
     private int loop = 1;
     private int threads = 10;
     private List<ClientOptions> clientOptionsList;
-
-    public static void main(String[] args) {
-        ClientOptions co = new ClientOptions();
-        co.parseCli(new String[]{
-            "-version", "00000000", "-live", "-app", "oflaDemo", "-buffer", "0",
-            "stream1259414892312", "home/apps/vod/IronMan.flv"
-        });
-        RtmpClient.connect(co);
-    }
 
     public ClientOptions() {}
 
@@ -178,6 +168,8 @@ public class ClientOptions {
         options.addOption(new Option("append", "publish local file to server in 'append' mode"));
         options.addOption(OptionBuilder.withArgName("property=value").hasArgs(2)
                 .withValueSeparator().withDescription("add / override connection param").create("D"));
+        options.addOption(OptionBuilder.withArgName("arg").hasArgs(1)
+                .withValueSeparator().withDescription("add connect arg").create("A"));
         options.addOption(OptionBuilder.withArgName("swf").hasArg()
                 .withDescription("path to (decompressed) SWF for verification").create("swf"));
         options.addOption(OptionBuilder.withArgName("version").hasArg()
@@ -242,6 +234,9 @@ public class ClientOptions {
             }
             if(line.hasOption("D")) { // TODO integers, TODO extra args for 'play' command
                 params = new HashMap(line.getOptionProperties("D"));
+            }
+            if(line.hasOption("A")) {
+                this.connectArgs = line.getOptionValues("A");
             }
             if(line.hasOption("load")) {
                 load = Integer.valueOf(line.getOptionValue("load"));
@@ -338,14 +333,6 @@ public class ClientOptions {
         this.fileToPublish = fileName;
     }
 
-    public RtmpReader getReaderToPublish() {
-        return readerToPublish;
-    }
-
-    public void setReaderToPublish(RtmpReader readerToPublish) {
-        this.readerToPublish = readerToPublish;
-    }
-
     public String getAppName() {
         return appName;
     }
@@ -358,12 +345,12 @@ public class ClientOptions {
         return (rtmpe ? "rtmpe://" : "rtmp://") + host + ":" + port + "/" + appName;
     }
 
-    public void setArgs(Object ... args) {
-        this.args = args;
+    public void setArgs(Object ... connectArgs) {
+        this.connectArgs = connectArgs;
     }
 
-    public Object[] getArgs() {
-        return args;
+    public Object[] getConnectArgs() {
+        return connectArgs;
     }
 
     public void setClientVersionToUse(byte[] clientVersionToUse) {
@@ -506,6 +493,14 @@ public class ClientOptions {
         return clientOptionsList;
     }
 
+    public ClientLogic getClientLogic() {
+        if(publishType != null) {
+            return new PublishLogic(this);
+        } else {
+            return new ConsumeLogic(this);
+        }
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -523,7 +518,7 @@ public class ClientOptions {
         sb.append(" length: ").append(length);
         sb.append(" buffer: ").append(buffer);
         sb.append(" params: ").append(params);
-        sb.append(" args: ").append(Arrays.toString(args));
+        sb.append(" connectArgs: ").append(Arrays.toString(connectArgs));
         if(swfHash != null) {
             sb.append(" swfHash: '").append(Utils.toHex(swfHash));
             sb.append("' swfSize: ").append(swfSize).append('\'');

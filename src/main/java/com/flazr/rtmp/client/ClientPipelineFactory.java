@@ -44,7 +44,7 @@ public class ClientPipelineFactory implements ChannelPipelineFactory {
 //            pipeline.addLast("executor", new ExecutionHandler(
 //                    new OrderedMemoryAwareThreadPoolExecutor(16, 1048576, 1048576)));
 //        }
-        pipeline.addLast("handler", new ClientHandler(options));
+        pipeline.addLast("handler", new ClientHandler(options.getClientLogic(), options.getBuffer()));
         return pipeline;
     }
 

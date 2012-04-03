@@ -42,7 +42,7 @@ public class ClientHandshakeHandler extends FrameDecoder implements ChannelDowns
     private boolean handshakeDone;
 
     public ClientHandshakeHandler(ClientOptions options) {
-        handshake = new RtmpHandshake(options);
+        handshake = new RtmpHandshake(options.isRtmpe(), options.getSwfHash(), options.getSwfSize(), options.getClientVersionToUse());
     }
 
     @Override

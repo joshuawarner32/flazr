@@ -19,7 +19,6 @@
 
 package com.flazr.rtmp;
 
-import com.flazr.rtmp.client.ClientOptions;
 import com.flazr.util.Utils;
 import java.math.BigInteger;
 import java.security.KeyFactory;
@@ -180,12 +179,12 @@ public class RtmpHandshake {
 
     public RtmpHandshake() {}
 
-    public RtmpHandshake(ClientOptions session) {
-        this.rtmpe = session.isRtmpe();
-        this.swfHash = session.getSwfHash();
-        this.swfSize = session.getSwfSize();
-        if(session.getClientVersionToUse() != null) {
-            this.clientVersionToUse = session.getClientVersionToUse();
+    public RtmpHandshake(boolean rtmpe, byte[] swfHash, int swfSize, byte[] clientVersionToUse) {
+        this.rtmpe = rtmpe;
+        this.swfHash = swfHash;
+        this.swfSize = swfSize;
+        if(clientVersionToUse != null) {
+            this.clientVersionToUse = clientVersionToUse;
         }
     }
 

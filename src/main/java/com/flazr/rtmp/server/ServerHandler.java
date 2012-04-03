@@ -23,6 +23,7 @@ import com.flazr.rtmp.message.BytesRead;
 import com.flazr.rtmp.message.ChunkSize;
 import com.flazr.rtmp.message.Control;
 import com.flazr.rtmp.RtmpMessage;
+import com.flazr.rtmp.LimitedReader;
 import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.RtmpPublisher;
 import com.flazr.rtmp.RtmpWriter;
@@ -305,10 +306,13 @@ public class ServerHandler extends SimpleChannelHandler {
         }
         if(!clientPlayName.equals(playName)) {
             playName = clientPlayName;                        
-            final RtmpReader reader = application.getReader(playName);
+            RtmpReader reader = application.getReader(playName);
             if(reader == null) {
                 channel.write(Command.playFailed(playName, clientId));
                 return;
+            }
+            if(playStart != -2 || playLength != -1) {
+                reader = new LimitedReader(reader, playStart, playLength);
             }
             publisher = new RtmpPublisher(reader, streamId, bufferDuration, true, aggregateModeEnabled) {
                 @Override protected RtmpMessage[] getStopMessages(long timePosition) {
@@ -320,7 +324,7 @@ public class ServerHandler extends SimpleChannelHandler {
                 }
             };
         }
-        publisher.start(channel, playStart, playLength, getStartMessages(playResetCommand));
+        publisher.start(channel, getStartMessages(playResetCommand));
     }
 
     private void pauseResponse(final Channel channel, final Command command) {
@@ -334,7 +338,8 @@ public class ServerHandler extends SimpleChannelHandler {
         if(!paused) {            
             logger.debug("doing unpause, seeking and playing");            
             final Command unpause = Command.unpauseNotify(playName, clientId);
-            publisher.start(channel, clientTimePosition, getStartMessages(unpause));
+            publisher.seek(clientTimePosition);
+            publisher.start(channel, getStartMessages(unpause));
         } else {            
             publisher.pause();
         }
@@ -348,7 +353,8 @@ public class ServerHandler extends SimpleChannelHandler {
         final int clientTimePosition = ((Double) command.getArg(0)).intValue();
         if (!publisher.isPaused()) {
             final Command seekNotify = Command.seekNotify(streamId, clientTimePosition, playName, clientId);
-            publisher.start(channel, clientTimePosition, getStartMessages(seekNotify));
+            publisher.seek(clientTimePosition);
+            publisher.start(channel, getStartMessages(seekNotify));
         } else {
             logger.debug("ignoring seek when paused, client time position: {}", clientTimePosition);
         }

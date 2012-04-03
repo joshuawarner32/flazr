@@ -21,12 +21,12 @@ package com.flazr.rtmp.message;
 
 import com.flazr.amf.Amf0Object;
 import com.flazr.rtmp.RtmpHeader;
-import com.flazr.rtmp.client.ClientOptions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.jboss.netty.buffer.ChannelBuffer;
+import com.flazr.rtmp.server.ServerStream.PublishType;
 
 public abstract class Command extends AbstractMessage {
     
@@ -106,21 +106,21 @@ public abstract class Command extends AbstractMessage {
 
     //==========================================================================
 
-    public static Command connect(ClientOptions options) {
+    public static Command connect(String appName, String tcUrl, Map<String, Object> params, Object... args) {
         Amf0Object object = object(
-            pair("app", options.getAppName()),
+            pair("app", appName),
             pair("flashVer", "WIN 9,0,124,2"),
-            pair("tcUrl", options.getTcUrl()),
+            pair("tcUrl", tcUrl),
             pair("fpad", false),
             pair("audioCodecs", 1639.0),
             pair("videoCodecs", 252.0),
             pair("objectEncoding", 0.0),
             pair("capabilities", 15.0),
             pair("videoFunction", 1.0));
-        if(options.getParams() != null) {
-            object.putAll(options.getParams());
+        if(params != null) {
+            object.putAll(params);
         }
-        return new CommandAmf0("connect", object, options.getArgs());
+        return new CommandAmf0("connect", object, args);
     }
 
     public static Command connectSuccess(int transactionId) {
@@ -145,17 +145,17 @@ public abstract class Command extends AbstractMessage {
         return new CommandAmf0(transactionId, "_result", null, streamId);
     }
 
-    public static Command play(int streamId, ClientOptions options) {
+    public static Command play(int streamId, String streamName, int start, int length, Object... args) {
         final List playArgs = new ArrayList();
-        playArgs.add(options.getStreamName());
-        if(options.getStart() != -2 || options.getArgs() != null) {
-            playArgs.add(options.getStart());
+        playArgs.add(streamName);
+        if(start != -2 || args.length > 0) {
+            playArgs.add(start);
         }
-        if(options.getLength() != -1 || options.getArgs() != null) {
-            playArgs.add(options.getLength());
+        if(length != -1 || args.length > 0) {
+            playArgs.add(length);
         }
-        if(options.getArgs() != null) {
-            playArgs.addAll(Arrays.asList(options.getArgs()));
+        if(args.length > 0) {
+            playArgs.addAll(Arrays.asList(args));
         }
         Command command = new CommandAmf0("play", null, playArgs.toArray());
         command.header.setChannelId(8);
@@ -229,9 +229,9 @@ public abstract class Command extends AbstractMessage {
         return command;
     }
     
-    public static Command publish(int streamId, ClientOptions options) { // TODO
-        Command command = new CommandAmf0("publish", null, options.getStreamName(),
-                options.getPublishType().asString());
+    public static Command publish(int streamId, String streamName, PublishType publishType) { // TODO
+        Command command = new CommandAmf0("publish", null, streamName,
+                publishType.asString());
         command.header.setChannelId(8);
         command.header.setStreamId(streamId);
         return command;

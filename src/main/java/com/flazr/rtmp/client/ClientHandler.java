@@ -32,11 +32,15 @@ import com.flazr.rtmp.message.ChunkSize;
 import com.flazr.rtmp.message.WindowAckSize;
 import com.flazr.rtmp.message.Command;
 import com.flazr.rtmp.message.Metadata;
+import com.flazr.rtmp.message.DataMessage;
 import com.flazr.rtmp.message.SetPeerBw;
 import com.flazr.util.ChannelUtils;
 import com.flazr.util.Utils;
+import com.flazr.rtmp.server.ServerStream.PublishType;
+
 import java.util.HashMap;
 import java.util.Map;
+
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -46,6 +50,7 @@ import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,11 +60,9 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     private static final Logger logger = LoggerFactory.getLogger(ClientHandler.class);
 
     private int transactionId = 1;
-    private Map<Integer, String> transactionToCommandMap;
-    private ClientOptions options;
+    private Map<Integer, ResultHandler> transactionToResultHandler = new HashMap<Integer, ResultHandler>();
+    private ClientLogic logic;
     private byte[] swfvBytes;
-
-    private RtmpWriter writer;
 
     private int bytesReadWindow = 2500000;
     private long bytesRead;
@@ -67,22 +70,64 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     private int bytesWrittenWindow = 2500000;
     
     private RtmpPublisher publisher;
-    private int streamId;    
+    private RtmpWriter writer;
+
+    private int streamId;
+
+    private int bufferSize;
+
+    private Channel channel;
+
+    private Connection myConnection = new Connection() {
+
+        public void connectToScope(String scopeName, String tcUrl, Map<String, Object> params, Object[] args, ResultHandler handler) {
+            writeCommandExpectingResult(channel, 
+                Command.connect(scopeName, tcUrl, params, args),
+                handler);
+        }
+
+        public void createStream(ResultHandler handler) {
+            writeCommandExpectingResult(channel,
+                Command.createStream(),
+                handler);
+        }
+
+        public void publish(final int streamId, String streamName, PublishType publishType, int bufferSize, RtmpReader reader, ResultHandler handler) {
+            publisher = new RtmpPublisher(reader, streamId, bufferSize, false, false) {
+                @Override protected RtmpMessage[] getStopMessages(long timePosition) {
+                    return new RtmpMessage[]{Command.unpublish(streamId)};
+                }
+            };
+            writeCommandExpectingResult(channel,
+                Command.publish(streamId, streamName, publishType),
+                handler);
+        }
+
+        public void play(int streamId, String streamName, int start, int length, ResultHandler handler) {
+            writeCommandExpectingResult(channel,
+                Command.play(streamId, streamName, start, length),
+                handler);
+        }
+
+        public void message(RtmpMessage message) {
+            channel.write(message);
+        }
+    };
 
     public void setSwfvBytes(byte[] swfvBytes) {
         this.swfvBytes = swfvBytes;        
         logger.info("set swf verification bytes: {}", Utils.toHex(swfvBytes));        
     }
 
-    public ClientHandler(ClientOptions options) {
-        this.options = options;
-        transactionToCommandMap = new HashMap<Integer, String>();        
+    public ClientHandler(ClientLogic logic, int bufferSize) {
+        this.logic = logic;
+        this.bufferSize = bufferSize;
     }
 
-    private void writeCommandExpectingResult(Channel channel, Command command) {
+    private void writeCommandExpectingResult(Channel channel, Command command, ResultHandler handler) {
         final int id = transactionId++;
         command.setTransactionId(id);
-        transactionToCommandMap.put(id, command.getName());
+        transactionToResultHandler.put(id, handler);
         logger.info("sending command (expecting result): {}", command);
         channel.write(command);
     }
@@ -90,25 +135,27 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void channelOpen(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
         logger.info("channel opened: {}", e);
+        channel = e.getChannel();
         super.channelOpen(ctx, e);
     }
 
     @Override
-    public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {
+    public void channelConnected(ChannelHandlerContext ctx, final ChannelStateEvent e) {
         logger.info("handshake complete, sending 'connect'");
-        writeCommandExpectingResult(e.getChannel(), Command.connect(options));
+        logic.connected(myConnection);
     }
 
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
         logger.info("channel closed: {}", e);
-        if(writer != null) {
-            writer.close();
-        }
+        logic.closed(myConnection);
+        super.channelClosed(ctx, e);
         if(publisher != null) {
             publisher.close();
         }
-        super.channelClosed(ctx, e);
+        if(writer != null) {
+            writer.close();
+        }
     }
     
     @Override
@@ -144,12 +191,11 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         break;
                     case STREAM_BEGIN:
                         if(publisher != null && !publisher.isStarted()) {
-                            publisher.start(channel, options.getStart(),
-                                    options.getLength(), new ChunkSize(4096));
+                            publisher.start(channel, new ChunkSize(4096));
                             return;
                         }
                         if(streamId !=0) {
-                            channel.write(Control.setBuffer(streamId, options.getBuffer()));
+                            channel.write(Control.setBuffer(streamId, bufferSize));
                         }
                         break;
                     default:
@@ -158,18 +204,12 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 break;
             case METADATA_AMF0:
             case METADATA_AMF3:
-                Metadata metadata = (Metadata) message;
-                if(metadata.getName().equals("onMetaData")) {
-                    logger.debug("writing 'onMetaData': {}", metadata);
-                    writer.write(message);
-                } else {
-                    logger.debug("ignoring metadata: {}", metadata);
-                }
+                logic.onMetaData(myConnection, (Metadata) message);
                 break;
             case AUDIO:
             case VIDEO:
-            case AGGREGATE:                
-                writer.write(message);
+            case AGGREGATE:
+                logic.onData(myConnection, (DataMessage) message);
                 bytesRead += message.getHeader().getSize();
                 if((bytesRead - bytesReadLastSent) > bytesReadWindow) {
                     logger.debug("sending bytes read ack {}", bytesRead);
@@ -179,44 +219,16 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 break;
             case COMMAND_AMF0:
             case COMMAND_AMF3:
-                Command command = (Command) message;                
+                Command command = (Command) message;
                 String name = command.getName();
                 logger.debug("server command: {}", name);
                 if(name.equals("_result")) {
-                    String resultFor = transactionToCommandMap.get(command.getTransactionId());
-                    logger.info("result for method call: {}", resultFor);
-                    if(resultFor.equals("connect")) {
-                        writeCommandExpectingResult(channel, Command.createStream());
-                    } else if(resultFor.equals("createStream")) {
-                        streamId = ((Double) command.getArg(0)).intValue();
-                        logger.debug("streamId to use: {}", streamId);
-                        if(options.getPublishType() != null) { // TODO append, record                            
-                            RtmpReader reader;
-                            if(options.getFileToPublish() != null) {
-                                reader = RtmpPublisher.getReader(options.getFileToPublish());
-                            } else {
-                                reader = options.getReaderToPublish();
-                            }
-                            if(options.getLoop() > 1) {
-                                reader = new LoopedReader(reader, options.getLoop());
-                            }
-                            publisher = new RtmpPublisher(reader, streamId, options.getBuffer(), false, false) {
-                                @Override protected RtmpMessage[] getStopMessages(long timePosition) {
-                                    return new RtmpMessage[]{Command.unpublish(streamId)};
-                                }
-                            };                            
-                            channel.write(Command.publish(streamId, options));
-                            return;
-                        } else {
-                            writer = options.getWriterToSave();
-                            if(writer == null) {
-                                writer = new FlvWriter(options.getStart(), options.getSaveAs());
-                            }
-                            channel.write(Command.play(streamId, options));
-                            channel.write(Control.setBuffer(streamId, 0));
-                        }
+                    ResultHandler handler = transactionToResultHandler.get(command.getTransactionId());
+                    if(handler != null) {
+                        handler.handleResult(command.getArg(0));
+                        logger.info("result for method call: {}", command.getArg(0));
                     } else {
-                        logger.warn("un-handled server result for: {}", resultFor);
+                        logger.warn("un-handled server result for: {}", command.getArg(0));
                     }
                 } else if(name.equals("onStatus")) {
                     final Map<String, Object> temp = (Map) command.getArg(0);
@@ -225,15 +237,16 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                     if (code.equals("NetStream.Failed") // TODO cleanup
                             || code.equals("NetStream.Play.Failed")
                             || code.equals("NetStream.Play.Stop")
-                            || code.equals("NetStream.Play.StreamNotFound")) {
+                            || code.equals("NetStream.Play.StreamNotFound"))
+                    {
                         logger.info("disconnecting, code: {}, bytes read: {}", code, bytesRead);
                         channel.close();
                         return;
                     }
                     if(code.equals("NetStream.Publish.Start")
-                            && publisher != null && !publisher.isStarted()) {
-                            publisher.start(channel, options.getStart(),
-                                    options.getLength(), new ChunkSize(4096));
+                            && publisher != null && !publisher.isStarted())
+                    {
+                        publisher.start(channel, new ChunkSize(4096));
                         return;
                     }
                     if (publisher != null && code.equals("NetStream.Unpublish.Success")) {
@@ -251,7 +264,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                     channel.close();
                     return;
                 } else {
-                    logger.warn("ignoring server command: {}", command);
+                    Object result = logic.command(myConnection, command);
+                    // TODO: send result back
                 }
                 break;
             case BYTES_READ:
