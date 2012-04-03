@@ -31,25 +31,26 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ServerApplication {
+public class ServerApplication extends ServerScope {
 
     private static final Logger logger = LoggerFactory.getLogger(ServerApplication.class);
 
-    private final String name;
-    private final Map<String, ServerStream> streams;
-
-    public ServerApplication(final String rawName) {
-        this.name = cleanName(rawName);        
-        streams = new ConcurrentHashMap<String, ServerStream>();        
+    public ServerApplication(ServerScope parent, String name) {
+        this(parent, name, new ServerScopeFactory() {
+            public ServerScope makeChild(ServerScope scope, String name) {
+                return new ServerScope(scope, name);
+            }
+        });
     }
 
-    public String getName() {
-        return name;
+    public ServerApplication(ServerScope parent, String name, ServerScopeFactory childFactory) {
+        super(parent, name, childFactory);
     }
 
+    @Override
     public RtmpReader getReader(final String rawName) {
         final String streamName = Utils.trimSlashes(rawName);
-        final String path = RtmpConfig.SERVER_HOME_DIR + "/apps/" + name + "/";
+        final String path = RtmpConfig.SERVER_HOME_DIR + "/apps/" + getName() + "/";
         final String readerPlayName;
         try {
             if(streamName.startsWith("mp4:")) {
@@ -69,47 +70,15 @@ public class ServerApplication {
         }
     }
 
+    @Override
     public RtmpWriter getWriter(final String rawName) {
         final String streamName = Utils.trimSlashes(rawName);
-        final String path = RtmpConfig.SERVER_HOME_DIR + "/apps/" + name + "/";
+        final String path = RtmpConfig.SERVER_HOME_DIR + "/apps/" + getName() + "/";
         return new FlvWriter(path + streamName + ".flv");
-    }
-
-    public static ServerApplication get(final String rawName) {
-        final String appName = cleanName(rawName);
-        ServerApplication app = RtmpServer.APPLICATIONS.get(appName);
-        if(app == null) {
-            app = new ServerApplication(appName);
-            RtmpServer.APPLICATIONS.put(appName, app);
-        }
-        return app;
-    }
-
-    public ServerStream getStream(final String rawName) {        
-        return getStream(rawName, null);
-    }
-
-    public ServerStream getStream(final String rawName, final String type) {
-        final String streamName = cleanName(rawName);
-        ServerStream stream = streams.get(streamName);
-        if(stream == null) {
-            stream = new ServerStream(streamName, type);
-            streams.put(streamName, stream);
-        }
-        return stream;
     }
 
     private static String cleanName(final String raw) {
         return Utils.trimSlashes(raw).toLowerCase();
-    }
-
-    @Override
-    public String toString() {
-        final StringBuilder sb = new StringBuilder();
-        sb.append("[name: '").append(name);
-        sb.append("' streams: ").append(streams);
-        sb.append(']');
-        return sb.toString();
     }
 
 }

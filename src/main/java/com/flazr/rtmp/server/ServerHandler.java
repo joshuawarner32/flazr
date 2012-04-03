@@ -63,19 +63,25 @@ public class ServerHandler extends SimpleChannelHandler {
 
     private long bytesWritten;
     private int bytesWrittenWindow = 2500000;
-    private int bytesWrittenLastReceived;   
+    private int bytesWrittenLastReceived;
 
-    private ServerApplication application;
+    private final ServerScope rootScope;
+
+    private ServerScope scope;
     private String clientId;
     private String playName;
     private int streamId;
     private int bufferDuration;
 
-    private RtmpPublisher publisher;    
+    private RtmpPublisher publisher;
     private ServerStream subscriberStream;
     private RtmpWriter recorder;
 
     private boolean aggregateModeEnabled = true;
+
+    public ServerHandler(ServerScope rootScope) {
+        this.rootScope = rootScope;
+    }
 
     public void setAggregateModeEnabled(boolean aggregateModeEnabled) {
         this.aggregateModeEnabled = aggregateModeEnabled;
@@ -255,8 +261,8 @@ public class ServerHandler extends SimpleChannelHandler {
     private void connectResponse(final Channel channel, final Command connect) {
         final String appName = (String) connect.getObject().get("app");
         clientId = channel.getId() + "";        
-        application = ServerApplication.get(appName); // TODO auth, validation
-        logger.info("connect, client id: {}, application: {}", clientId, application);
+        scope = rootScope.getChildRecursive(appName); // TODO auth, validation
+        logger.info("connect, client id: {}, scope: {}", clientId, scope);
         channel.write(new WindowAckSize(bytesWrittenWindow));
         channel.write(SetPeerBw.dynamic(bytesReadWindow));
         channel.write(Control.streamBegin(streamId));
@@ -282,7 +288,7 @@ public class ServerHandler extends SimpleChannelHandler {
         }
         final Command playResetCommand = playReset ? Command.playReset(playName, clientId) : null;
         final String clientPlayName = (String) play.getArg(0);
-        final ServerStream stream = application.getStream(clientPlayName);
+        final ServerStream stream = scope.getStream(clientPlayName);
         logger.debug("play name {}, start {}, length {}, reset {}",
                 new Object[]{clientPlayName, playStart, playLength, playReset});
         if(stream.isLive()) {                  
@@ -306,7 +312,7 @@ public class ServerHandler extends SimpleChannelHandler {
         }
         if(!clientPlayName.equals(playName)) {
             playName = clientPlayName;                        
-            RtmpReader reader = application.getReader(playName);
+            RtmpReader reader = scope.getReader(playName);
             if(reader == null) {
                 channel.write(Command.playFailed(playName, clientId));
                 return;
@@ -361,11 +367,18 @@ public class ServerHandler extends SimpleChannelHandler {
     }
 
     private void publishResponse(final Channel channel, final Command command) {
-        if(command.getArgCount() > 1) { // publish
+        // TODO: figure out what different arguments actually work.
+        //   I found that the following condition doesn't work for all applications.
+        // if(command.getArgCount() > 1) { // publish
             final String streamName = (String) command.getArg(0);
-            final String publishTypeString = (String) command.getArg(1);
+            final String publishTypeString;
+            if(command.getArgCount() > 1) {
+                publishTypeString = (String) command.getArg(1);
+            } else {
+                publishTypeString = "live";
+            }
             logger.info("publish, stream name: {}, type: {}", streamName, publishTypeString);
-            subscriberStream = application.getStream(streamName, publishTypeString); // TODO append, record
+            subscriberStream = scope.getStream(streamName, publishTypeString); // TODO append, record
             if(subscriberStream.getPublisher() != null) {
                 logger.info("disconnecting publisher client, stream already in use");
                 ChannelFuture future = channel.write(Command.publishBadName(streamId));
@@ -388,19 +401,19 @@ public class ServerHandler extends SimpleChannelHandler {
                     writeToStream(subscribers, Metadata.dataStart());
                     break;
                 case RECORD:
-                    recorder = application.getWriter(streamName);
+                    recorder = scope.getWriter(streamName);
                     break;
                 case APPEND:
                     logger.warn("append not implemented yet, un-publishing...");
                     unpublishIfLive();
                     break;
             }
-        } else { // un-publish
-            final boolean publish = (Boolean) command.getArg(0);
-            if(!publish) {
-                unpublishIfLive();
-            }
-        }
+        // } else { // un-publish
+        //     final boolean publish = (Boolean) command.getArg(0);
+        //     if(!publish) {
+        //         unpublishIfLive();
+        //     }
+        // }
     }
 
     // TODO cleanup

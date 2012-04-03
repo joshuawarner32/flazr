@@ -29,6 +29,12 @@ import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 public class ServerPipelineFactory implements ChannelPipelineFactory {
 
+    private final ServerScope rootScope;
+
+    public ServerPipelineFactory(ServerScope rootScope) {
+      this.rootScope = rootScope;
+    }
+
     @Override
     public ChannelPipeline getPipeline() {
         ChannelPipeline pipeline = Channels.pipeline();        
@@ -37,7 +43,7 @@ public class ServerPipelineFactory implements ChannelPipelineFactory {
         pipeline.addLast("encoder", new RtmpEncoder());
 //        pipeline.addLast("executor", new ExecutionHandler(
 //                new OrderedMemoryAwareThreadPoolExecutor(16, 1048576, 1048576)));
-        pipeline.addLast("handler", new ServerHandler());
+        pipeline.addLast("handler", new ServerHandler(rootScope));
         return pipeline;
     }
 

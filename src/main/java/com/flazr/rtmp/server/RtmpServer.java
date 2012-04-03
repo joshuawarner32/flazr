@@ -60,7 +60,13 @@ public class RtmpServer {
 
         final ServerBootstrap bootstrap = new ServerBootstrap(factory);
 
-        bootstrap.setPipelineFactory(new ServerPipelineFactory());
+        ServerScope rootScope = new ServerScope(null, "/", new ServerScopeFactory() {
+            public ServerScope makeChild(ServerScope scope, String name) {
+                return new ServerApplication(scope, name);
+            }
+        });
+
+        bootstrap.setPipelineFactory(new ServerPipelineFactory(rootScope));
         bootstrap.setOption("child.tcpNoDelay", true);
         bootstrap.setOption("child.keepAlive", true);
 

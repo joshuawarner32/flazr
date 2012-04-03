@@ -56,14 +56,13 @@ public class ServerStream {
 
     public ServerStream(final String rawName, final String typeString) {        
         this.name = Utils.trimSlashes(rawName).toLowerCase();
+        configMessages = new ArrayList<RtmpMessage>();
         if(typeString != null) {
             this.publishType = PublishType.parse(typeString); // TODO record, append
             subscribers = new DefaultChannelGroup(name);
-            configMessages = new ArrayList<RtmpMessage>();
         } else {
             this.publishType = null;
             subscribers = null;
-            configMessages = null;
         }
         logger.info("Created ServerStream {}", this);
     }
