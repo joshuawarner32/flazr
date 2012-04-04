@@ -19,6 +19,7 @@
 
 package com.flazr.rtmp.server;
 
+import com.flazr.rtmp.PublishType;
 import com.flazr.rtmp.message.BytesRead;
 import com.flazr.rtmp.message.ChunkSize;
 import com.flazr.rtmp.message.Control;
@@ -370,7 +371,7 @@ public class ServerHandler extends SimpleChannelHandler {
             channel.write(Command.publishStart(streamName, clientId, streamId));
             channel.write(new ChunkSize(4096));
             channel.write(Control.streamBegin(streamId));
-            final ServerStream.PublishType publishType = subscriberStream.getPublishType();
+            final PublishType publishType = subscriberStream.getPublishType();
             logger.info("created publish stream: {}", subscriberStream);
             switch(publishType) {
                 case LIVE:

@@ -181,7 +181,7 @@ public class RtmpHandshake {
     public RtmpHandshake() {}
 
     public RtmpHandshake(ClientOptions session) {
-        this.rtmpe = session.isRtmpe();
+        this.rtmpe = session.getProtocol() == ProtocolType.RTMPE;
         this.swfHash = session.getSwfHash();
         this.swfSize = session.getSwfSize();
         if(session.getClientVersionToUse() != null) {

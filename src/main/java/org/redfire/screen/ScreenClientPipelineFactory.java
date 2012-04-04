@@ -1,25 +1,9 @@
-/*
- * Flazr <http://flazr.com> Copyright (C) 2009  Peter Thomas.
- *
- * This file is part of Flazr.
- *
- * Flazr is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Flazr is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-package com.flazr.rtmp.client;
+package org.redfire.screen;
 
 import com.flazr.rtmp.*;
+import com.flazr.rtmp.client.ClientHandshakeHandler;
+import com.flazr.rtmp.client.ClientHttpTunnelHandler;
+import com.flazr.rtmp.client.ClientOptions;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
@@ -28,14 +12,16 @@ import org.jboss.netty.handler.codec.http.HttpClientCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ClientPipelineFactory implements ChannelPipelineFactory {
+public class ScreenClientPipelineFactory implements ChannelPipelineFactory {
     
-    private static final Logger logger = LoggerFactory.getLogger(ClientPipelineFactory.class);  
+    private static final Logger logger = LoggerFactory.getLogger(ScreenClientPipelineFactory.class);
 
     private final ClientOptions options;
+    private final ScreenShare screenShare;
 
-    public ClientPipelineFactory(final ClientOptions options) {
+    public ScreenClientPipelineFactory(final ClientOptions options, final ScreenShare screenShare) {
         this.options = options;
+        this.screenShare = screenShare;
     }
 
     @Override
@@ -57,7 +43,7 @@ public class ClientPipelineFactory implements ChannelPipelineFactory {
         pipeline.addLast("handshaker", new ClientHandshakeHandler(options));
         pipeline.addLast("decoder", new RtmpDecoder());
         pipeline.addLast("encoder", new RtmpEncoder());
-        pipeline.addLast("handler", new ClientHandler(options));
+        pipeline.addLast("handler", new ScreenClientHandler(options, screenShare));
         return pipeline;
     }
 

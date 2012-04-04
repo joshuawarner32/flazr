@@ -22,6 +22,7 @@ package com.flazr.util;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 
 import java.io.OutputStream;
@@ -30,9 +31,6 @@ import java.net.Socket;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpMethod;
-import org.apache.commons.httpclient.methods.GetMethod;
 import org.jboss.netty.buffer.ChannelBuffer;
 
 public class Utils {
@@ -173,21 +171,6 @@ public class Utils {
         }
     }
 
-    public static String getOverHttp(String url) {
-        HttpClient client = new HttpClient();
-        String response = null;
-        HttpMethod get = new GetMethod(url);
-        try {
-            client.executeMethod(get);
-            response = get.getResponseBodyAsString();
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            get.releaseConnection();
-        }
-        return response;
-    }
-
     public static byte[] sha256(final byte[] message, final byte[] key) {
         final Mac mac;
         try {
@@ -230,6 +213,26 @@ public class Utils {
             return null;
         }
         return raw.replace("/", "").replace("\\", "");
+    }
+    
+    public static String streamToString(InputStream is) {   
+        InputStreamReader isr = new InputStreamReader(is);
+        BufferedReader br = new BufferedReader(isr);
+        try {                        
+            String line = br.readLine();
+            StringBuilder sb = new StringBuilder(line);            
+            while (true) {   
+                line = br.readLine();
+                if (line == null) {
+                    break;
+                }
+                sb.append(line);
+            }             
+            br.close();                      
+            return sb.toString(); 
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }               
     }
 
 }
