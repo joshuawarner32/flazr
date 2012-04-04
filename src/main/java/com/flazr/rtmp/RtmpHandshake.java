@@ -170,8 +170,7 @@ public class RtmpHandshake {
     private boolean rtmpe;
     private int validationType;
 
-    private byte[] swfHash;
-    private int swfSize;
+    private SwfData swfData;
     private byte[] swfvBytes;
 
     private ChannelBuffer peerPartOne;
@@ -179,10 +178,9 @@ public class RtmpHandshake {
 
     public RtmpHandshake() {}
 
-    public RtmpHandshake(boolean rtmpe, byte[] swfHash, int swfSize, byte[] clientVersionToUse) {
+    public RtmpHandshake(boolean rtmpe, SwfData swfData, byte[] clientVersionToUse) {
         this.rtmpe = rtmpe;
-        this.swfHash = swfHash;
-        this.swfSize = swfSize;
+        this.swfData = swfData;
         if(clientVersionToUse != null) {
             this.clientVersionToUse = clientVersionToUse;
         }
@@ -345,17 +343,17 @@ public class RtmpHandshake {
         byte[] serverVersion = new byte[4];
         in.getBytes(4, serverVersion);
         logger.debug("server time: {}, version: {}", Utils.toHex(peerTime), Utils.toHex(serverVersion));
-        if(swfHash != null) {
+        if(swfData != null) {
             // swf verification
             byte[] key = new byte[DIGEST_SIZE];
             in.getBytes(HANDSHAKE_SIZE - DIGEST_SIZE, key);
-            byte[] digest = Utils.sha256(swfHash, key);
+            byte[] digest = Utils.sha256(swfData.getSwfHash(), key);
             // construct SWF verification pong payload
             ChannelBuffer swfv = ChannelBuffers.buffer(42);
             swfv.writeByte((byte) 0x01);
             swfv.writeByte((byte) 0x01);
-            swfv.writeInt(swfSize);
-            swfv.writeInt(swfSize);
+            swfv.writeInt(swfData.getSwfSize());
+            swfv.writeInt(swfData.getSwfSize());
             swfv.writeBytes(digest);
             swfvBytes = new byte[42];
             swfv.readBytes(swfvBytes);

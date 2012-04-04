@@ -22,9 +22,12 @@ package com.flazr.rtmp.client;
 import com.flazr.rtmp.RtmpHandshake;
 import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.RtmpWriter;
+import com.flazr.rtmp.SwfData;
+import com.flazr.rtmp.RtmpProtocol;
 import com.flazr.rtmp.server.ServerStream;
 import com.flazr.rtmp.server.ServerStream.PublishType;
 import com.flazr.util.Utils;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -37,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -44,6 +48,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -355,6 +360,14 @@ public class ClientOptions {
 
     public void setClientVersionToUse(byte[] clientVersionToUse) {
         this.clientVersionToUse = clientVersionToUse;
+    }
+
+    public SwfData getSwfData() {
+        return new SwfData(swfHash, swfSize);
+    }
+
+    public RtmpProtocol getProtocol() {
+        return new RtmpProtocol(rtmpe ? RtmpProtocol.RTMPE : RtmpProtocol.RTMP);
     }
 
     public byte[] getClientVersionToUse() {

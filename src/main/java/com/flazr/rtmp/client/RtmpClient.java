@@ -100,7 +100,13 @@ public class RtmpClient {
     private static ClientBootstrap getBootstrap(final Executor executor, final ClientOptions options) {
         final ChannelFactory factory = new NioClientSocketChannelFactory(executor, executor);
         final ClientBootstrap bootstrap = new ClientBootstrap(factory);
-        bootstrap.setPipelineFactory(new ClientPipelineFactory(options));
+        bootstrap.setPipelineFactory(
+            new ClientPipelineFactory(
+                options.getClientLogic(),
+                options.getBuffer(),
+                options.getProtocol(),
+                options.getSwfData(),
+                options.getClientVersionToUse()));
         bootstrap.setOption("tcpNoDelay" , true);
         bootstrap.setOption("keepAlive", true);
         return bootstrap;

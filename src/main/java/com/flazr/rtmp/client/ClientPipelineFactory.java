@@ -28,23 +28,39 @@ import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
 
 public class ClientPipelineFactory implements ChannelPipelineFactory {
 
-    private final ClientOptions options;
+    private final ClientLogic logic;
+    private final int bufferSize;
+    private RtmpProtocol protocol;
+    private SwfData swfData;
+    private byte[] clientVersionToUse;
 
-    public ClientPipelineFactory(final ClientOptions options) {
-        this.options = options;
+    public ClientPipelineFactory(ClientLogic logic, int bufferSize, RtmpProtocol protocol, SwfData swfData, byte[] clientVersionToUse) {
+        this.logic = logic;
+        this.bufferSize = bufferSize;
+        this.protocol = protocol;
+        this.swfData = swfData;
+        this.clientVersionToUse = clientVersionToUse;
     }
 
     @Override
     public ChannelPipeline getPipeline() {
         final ChannelPipeline pipeline = Channels.pipeline();
-        pipeline.addLast("handshaker", new ClientHandshakeHandler(options));
+        if(protocol.useSsl()) {
+            // TODO: add SSL encoder / decoder, to support RTMPS (in it's two forms: http proxied and native)
+            throw new UnsupportedOperationException("SSL is not currently supported");
+        }
+        if(protocol.useHttp()) {
+            // TODO: add Http encoder / decoder, to support RTMPT
+            throw new UnsupportedOperationException("proxying RTMP over HTTP is not currently supported");
+        }
+        pipeline.addLast("handshaker", new ClientHandshakeHandler(protocol.useRtmpe(), swfData, clientVersionToUse));
         pipeline.addLast("decoder", new RtmpDecoder());
         pipeline.addLast("encoder", new RtmpEncoder());
 //        if(options.getLoad() == 1) {
 //            pipeline.addLast("executor", new ExecutionHandler(
 //                    new OrderedMemoryAwareThreadPoolExecutor(16, 1048576, 1048576)));
 //        }
-        pipeline.addLast("handler", new ClientHandler(options.getClientLogic(), options.getBuffer()));
+        pipeline.addLast("handler", new ClientHandler(logic, bufferSize));
         return pipeline;
     }
 

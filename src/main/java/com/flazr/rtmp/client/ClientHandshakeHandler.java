@@ -21,6 +21,8 @@ package com.flazr.rtmp.client;
 
 import com.flazr.rtmp.RtmpHandshake;
 import com.flazr.rtmp.RtmpPublisher;
+import com.flazr.rtmp.SwfData;
+
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelDownstreamHandler;
@@ -41,8 +43,8 @@ public class ClientHandshakeHandler extends FrameDecoder implements ChannelDowns
     private final RtmpHandshake handshake;
     private boolean handshakeDone;
 
-    public ClientHandshakeHandler(ClientOptions options) {
-        handshake = new RtmpHandshake(options.isRtmpe(), options.getSwfHash(), options.getSwfSize(), options.getClientVersionToUse());
+    public ClientHandshakeHandler(boolean useRtmpe, SwfData swfData, byte[] clientVersionToUse) {
+        handshake = new RtmpHandshake(useRtmpe, swfData, clientVersionToUse);
     }
 
     @Override
