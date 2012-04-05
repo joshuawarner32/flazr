@@ -19,33 +19,39 @@
 
 package com.flazr.rtmp;
 
-public class RtmpProtocol {
+public enum RtmpProtocol {
 
-  private int flags;
+    RTMP,
+    RTMPE,
+    RTMPT,
+    RTMPS_NATIVE,
+    RTMPS_OVER_HTTPS;
 
-  public static final int RTMP = 0;
-  public static final int RTMPE = 1;
-  public static final int HTTP = 2;
-  public static final int SSL = 4;
+    private static final int FLAG_RTMP = 0;
+    private static final int FLAG_RTMPE = 1;
+    private static final int FLAG_HTTP = 2;
+    private static final int FLAG_SSL = 4;
 
-  public static final int RTMPS_NON_NATIVE = RTMP | HTTP | SSL;
-  public static final int RTMPS_NATIVE = RTMP | SSL;
+    static {
+        RTMP.flags = FLAG_RTMP;
+        RTMPE.flags = FLAG_RTMPE;
+        RTMPT.flags = FLAG_HTTP;
+        RTMPS_NATIVE.flags = FLAG_SSL;
+        RTMPS_OVER_HTTPS.flags = FLAG_HTTP | FLAG_SSL;
+    }
 
-  public RtmpProtocol(int flags) {
-    // TODO: verify flags
-    this.flags = flags;
-  }
+    private int flags;
 
-  public boolean useHttp() {
-    return (flags & HTTP) != 0;
-  }
+    public boolean useHttp() {
+        return (flags & FLAG_HTTP) != 0;
+    }
 
-  public boolean useSsl() {
-    return (flags & SSL) != 0;
-  }
+    public boolean useSsl() {
+        return (flags & FLAG_SSL) != 0;
+    }
 
-  public boolean useRtmpe() {
-    return (flags & RTMPE) != 0;
-  }
+    public boolean useRtmpe() {
+        return (flags & FLAG_RTMPE) != 0;
+    }
 
 }

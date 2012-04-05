@@ -367,7 +367,7 @@ public class ClientOptions {
     }
 
     public RtmpProtocol getProtocol() {
-        return new RtmpProtocol(rtmpe ? RtmpProtocol.RTMPE : RtmpProtocol.RTMP);
+        return rtmpe ? RtmpProtocol.RTMPE : RtmpProtocol.RTMP;
     }
 
     public byte[] getClientVersionToUse() {
