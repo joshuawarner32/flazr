@@ -36,7 +36,7 @@ import com.flazr.rtmp.message.DataMessage;
 import com.flazr.rtmp.message.SetPeerBw;
 import com.flazr.util.ChannelUtils;
 import com.flazr.util.Utils;
-import com.flazr.rtmp.server.ServerStream.PublishType;
+import com.flazr.rtmp.PublishType;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -16,26 +16,20 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with Flazr.  If not, see <http://www.gnu.org/licenses/>.
  */
+package com.flazr.rtmp;
 
-package com.flazr.rtmp.client;
+public enum PublishType {
 
-import java.util.Map;
+    LIVE,
+    APPEND,
+    RECORD;
 
-import com.flazr.rtmp.RtmpMessage;
-import com.flazr.rtmp.RtmpReader;
+    public String asString() {
+        return this.name().toLowerCase();
+    }
 
-import com.flazr.rtmp.PublishType;
-
-public interface Connection {
-
-    public void connectToScope(String scopeName, String tcUrl, Map<String, Object> params, Object[] args, ResultHandler handler);
-
-    public void createStream(ResultHandler handler);
-
-    public void publish(int streamId, String streamName, PublishType publishType, int bufferSize, RtmpReader reader, ResultHandler handler);
-
-    public void play(int streamId, String streamName, int start, int length, ResultHandler handler);
-
-    public void message(RtmpMessage message);
+    public static PublishType parse(final String raw) {
+        return PublishType.valueOf(raw.toUpperCase());
+    }
 
 }

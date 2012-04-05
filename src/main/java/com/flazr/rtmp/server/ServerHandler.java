@@ -34,10 +34,12 @@ import com.flazr.rtmp.message.Metadata;
 import com.flazr.rtmp.message.SetPeerBw;
 import com.flazr.rtmp.message.Video;
 import com.flazr.rtmp.message.WindowAckSize;
-
 import com.flazr.util.ChannelUtils;
+import com.flazr.rtmp.PublishType;
+
 import java.util.ArrayList;
 import java.util.List;
+
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
@@ -49,6 +51,7 @@ import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.channel.WriteCompletionEvent;
 import org.jboss.netty.channel.group.ChannelGroup;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -376,7 +379,7 @@ public class ServerHandler extends SimpleChannelHandler {
             channel.write(Command.publishStart(streamName, clientId, streamId));
             channel.write(new ChunkSize(4096));
             channel.write(Control.streamBegin(streamId));
-            final ServerStream.PublishType publishType = subscriberStream.getPublishType();
+            final PublishType publishType = subscriberStream.getPublishType();
             logger.info("created publish stream: {}", subscriberStream);
             switch(publishType) {
                 case LIVE:

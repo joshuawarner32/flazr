@@ -25,7 +25,7 @@ import com.flazr.rtmp.RtmpWriter;
 import com.flazr.rtmp.SwfData;
 import com.flazr.rtmp.RtmpProtocol;
 import com.flazr.rtmp.server.ServerStream;
-import com.flazr.rtmp.server.ServerStream.PublishType;
+import com.flazr.rtmp.PublishType;
 import com.flazr.util.Utils;
 
 import java.io.BufferedReader;
@@ -56,7 +56,7 @@ public class ClientOptions {
 
     private static final Logger logger = LoggerFactory.getLogger(ClientOptions.class);
 
-    private ServerStream.PublishType publishType;
+    private PublishType publishType;
     private String host = "localhost";
     private int port = 1935;
     private String appName = "vod";
@@ -138,15 +138,15 @@ public class ClientOptions {
     }
     
     public void publishLive() {
-        publishType = ServerStream.PublishType.LIVE;        
+        publishType = PublishType.LIVE;
     }
     
     public void publishRecord() {
-        publishType = ServerStream.PublishType.RECORD;        
+        publishType = PublishType.RECORD;
     }
     
     public void publishAppend() {
-        publishType = ServerStream.PublishType.APPEND;        
+        publishType = PublishType.APPEND;
     }
 
     //==========================================================================

@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.jboss.netty.buffer.ChannelBuffer;
-import com.flazr.rtmp.server.ServerStream.PublishType;
+import com.flazr.rtmp.PublishType;
 
 public abstract class Command extends AbstractMessage {
     
