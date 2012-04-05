@@ -21,9 +21,13 @@ package com.flazr.rtmp.client;
 
 import com.flazr.rtmp.RtmpHandshake;
 import com.flazr.rtmp.RtmpReader;
+import com.flazr.rtmp.RtmpPublisher;
+import com.flazr.rtmp.LimitedReader;
+import com.flazr.rtmp.LoopedReader;
 import com.flazr.rtmp.RtmpWriter;
 import com.flazr.rtmp.SwfData;
 import com.flazr.rtmp.RtmpProtocol;
+import com.flazr.io.flv.FlvWriter;
 import com.flazr.rtmp.server.ServerStream;
 import com.flazr.rtmp.PublishType;
 import com.flazr.util.Utils;
@@ -63,6 +67,7 @@ public class ClientOptions {
     private String streamName;
     private String fileToPublish;
     private RtmpWriter writerToSave;
+    private RtmpReader readerToPublish;
     private String saveAs;    
     private boolean rtmpe;
     private Map<String, Object> params;
@@ -308,6 +313,20 @@ public class ClientOptions {
         } else if(actualArgs.length > 1) {
             saveAs = actualArgs[1];
         }
+
+        if(fileToPublish != null) {
+            readerToPublish = RtmpPublisher.getReader(fileToPublish);
+            if(start > 0 || length != -1) {
+                readerToPublish = new LimitedReader(readerToPublish, start, length);
+            }
+            if(loop > 1) {
+                readerToPublish = new LoopedReader(readerToPublish, loop);
+            }
+        }
+
+        if(writerToSave == null) {
+            writerToSave = new FlvWriter(start, saveAs);
+        }
         logger.info("options: {}", this);
         return true;
     }
@@ -500,6 +519,14 @@ public class ClientOptions {
 
     public void setWriterToSave(RtmpWriter writerToSave) {
         this.writerToSave = writerToSave;
+    }
+
+    public RtmpReader getReaderToPublish() {
+        return readerToPublish;
+    }
+
+    public void setReaderToPublish(RtmpReader readerToPublish) {
+        this.readerToPublish = readerToPublish;
     }
 
     public List<ClientOptions> getClientOptionsList() {

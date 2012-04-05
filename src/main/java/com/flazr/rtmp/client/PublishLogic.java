@@ -29,8 +29,6 @@ import com.flazr.rtmp.message.Control;
 import com.flazr.rtmp.message.Metadata;
 import com.flazr.rtmp.message.DataMessage;
 import com.flazr.rtmp.RtmpMessage;
-import com.flazr.rtmp.RtmpReader;
-import com.flazr.rtmp.RtmpPublisher;
 
 import org.jboss.netty.channel.MessageEvent;
 
@@ -48,37 +46,12 @@ public class PublishLogic implements ClientLogic {
         conn.connectToScope(options.getAppName(), options.getTcUrl(), options.getParams(), options.getConnectArgs(),
             new ResultHandler() {
                 public void handleResult(Object ignored) {
-                    connectedToScope(conn);
+                    ClientUtils.beginPublish(conn, options.getReaderToPublish(), options.getStreamName(), options.getPublishType(), options.getBuffer());
                 }
             });
     }
 
     public void closed(Connection conn) {
-    }
-
-    private void connectedToScope(final Connection conn) {
-        conn.createStream(new ResultHandler() {
-            public void handleResult(Object streamId) {
-                int id = ((Double) streamId).intValue();
-                readyToPublish(conn, id);
-            }
-        });
-    }
-
-    private void readyToPublish(final Connection conn, final int streamId) {
-        RtmpReader reader = RtmpPublisher.getReader(options.getFileToPublish());
-        if(options.getStart() > 0 || options.getLength() != -1) {
-            reader = new LimitedReader(reader, options.getStart(), options.getLength());
-        }
-        if(options.getLoop() > 1) {
-            reader = new LoopedReader(reader, options.getLoop());
-        }
-        conn.publish(streamId, options.getStreamName(), options.getPublishType(), options.getBuffer(), reader,
-            new ResultHandler() {
-                public void handleResult(Object ignored) {
-                    logger.info("publish accepted successfully");
-                }
-            });
     }
 
 

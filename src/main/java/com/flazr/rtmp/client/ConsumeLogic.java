@@ -73,9 +73,6 @@ public class ConsumeLogic implements ClientLogic {
 
     private void readyToConsume(final Connection conn, int streamId) {
         writer = options.getWriterToSave();
-        if(writer == null) {
-            writer = new FlvWriter(options.getStart(), options.getSaveAs());
-        }
         conn.play(streamId, options.getStreamName(), options.getStart(), options.getLength(),
             new ResultHandler() {
                 public void handleResult(Object ignored) {
