@@ -31,7 +31,7 @@ public interface ClientLogic {
 
   public void closed(Connection conn);
 
-  public Object command(Connection conn, Command command);
+  public Object onCommand(Connection conn, Command command);
 
   public void onMetaData(Connection conn, Metadata metadata);
 

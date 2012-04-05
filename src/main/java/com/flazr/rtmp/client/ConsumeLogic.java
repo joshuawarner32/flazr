@@ -83,7 +83,7 @@ public class ConsumeLogic implements ClientLogic {
     }
 
 
-    public Object command(Connection conn, Command command) {
+    public Object onCommand(Connection conn, Command command) {
         logger.warn("ignoring command from server: {}", command.getName());
         return null;
     }

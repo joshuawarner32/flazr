@@ -264,7 +264,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                     channel.close();
                     return;
                 } else {
-                    Object result = logic.command(myConnection, command);
+                    Object result = logic.onCommand(myConnection, command);
                     // TODO: send result back
                 }
                 break;
