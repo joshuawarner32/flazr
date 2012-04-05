@@ -70,7 +70,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     private int bytesWrittenWindow = 2500000;
     
     private RtmpPublisher publisher;
-    private RtmpWriter writer;
+
+    private Map<Integer, RtmpWriter> writers = new HashMap<Integer, RtmpWriter>();
 
     private int streamId;
 
@@ -92,7 +93,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 handler);
         }
 
-        public void publish(final int streamId, String streamName, PublishType publishType, int bufferSize, RtmpReader reader, ResultHandler handler) {
+        public void publish(final int streamId, String streamName, RtmpReader reader, PublishType publishType, int bufferSize, ResultHandler handler) {
             publisher = new RtmpPublisher(reader, streamId, bufferSize, false, false) {
                 @Override protected RtmpMessage[] getStopMessages(long timePosition) {
                     return new RtmpMessage[]{Command.unpublish(streamId)};
@@ -103,7 +104,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 handler);
         }
 
-        public void play(int streamId, String streamName, int start, int length, ResultHandler handler) {
+        public void play(int streamId, String streamName, RtmpWriter writer, int start, int length, ResultHandler handler) {
+            writers.put(streamId, writer);
             writeCommandExpectingResult(channel,
                 Command.play(streamId, streamName, start, length),
                 handler);
@@ -153,7 +155,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
         if(publisher != null) {
             publisher.close();
         }
-        if(writer != null) {
+        for(RtmpWriter writer : writers.values()) {
             writer.close();
         }
     }
@@ -204,15 +206,22 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 break;
             case METADATA_AMF0:
             case METADATA_AMF3:
-                logic.onMetaData(myConnection, (Metadata) message);
+                Metadata metadata = (Metadata) message;
+                if(metadata.getName().equals("onMetaData")) {
+                    logger.debug("writing 'onMetaData': {}", metadata);
+                    writers.get(message.getHeader().getStreamId()).write(metadata);
+                } else {
+                    logger.debug("ignoring metadata: {}", metadata);
+                }
+                logic.onMetaData(myConnection, metadata);
                 break;
             case AUDIO:
             case VIDEO:
             case AGGREGATE:
-                logic.onData(myConnection, (DataMessage) message);
+                writers.get(message.getHeader().getStreamId()).write(message);
                 bytesRead += message.getHeader().getSize();
                 if((bytesRead - bytesReadLastSent) > bytesReadWindow) {
-                    logger.debug("sending bytes read ack {}", bytesRead);
+                    logger.debug("sending bytes read ack {} for stream {}", bytesRead);
                     bytesReadLastSent = bytesRead;
                     channel.write(new BytesRead(bytesRead));
                 }

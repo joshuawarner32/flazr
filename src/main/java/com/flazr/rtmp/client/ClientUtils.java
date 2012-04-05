@@ -31,7 +31,7 @@ public class ClientUtils {
         conn.createStream(new ResultHandler() {
             public void handleResult(Object streamId) {
                 int id = ((Double) streamId).intValue();
-                conn.publish(id, streamName, publishType, bufferSize, reader,
+                conn.publish(id, streamName, reader, publishType, bufferSize,
                     new ResultHandler() {
                         public void handleResult(Object ignored) {
                             // TODO: tell the client that the publish completed successfully

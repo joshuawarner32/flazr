@@ -64,9 +64,4 @@ public class PublishLogic implements ClientLogic {
         logger.debug("ignoring metadata: {}", metadata);
     }
 
-
-    public void onData(Connection conn, DataMessage message) {
-        logger.debug("ignoring data: {}", message);
-    }
-
 }

@@ -35,6 +35,4 @@ public interface ClientLogic {
 
   public void onMetaData(Connection conn, Metadata metadata);
 
-  public void onData(Connection conn, DataMessage message);
-
 }

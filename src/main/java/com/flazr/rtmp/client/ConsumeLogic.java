@@ -41,8 +41,6 @@ public class ConsumeLogic implements ClientLogic {
 
     private ClientOptions options;
 
-    private RtmpWriter writer;
-
     public ConsumeLogic(ClientOptions options) {
         this.options = options;
     }
@@ -57,9 +55,6 @@ public class ConsumeLogic implements ClientLogic {
     }
 
     public void closed(Connection conn) {
-        if(writer != null) {
-            writer.close();
-        }
     }
 
     private void connectedToScope(final Connection conn) {
@@ -72,8 +67,8 @@ public class ConsumeLogic implements ClientLogic {
     }
 
     private void readyToConsume(final Connection conn, int streamId) {
-        writer = options.getWriterToSave();
-        conn.play(streamId, options.getStreamName(), options.getStart(), options.getLength(),
+        RtmpWriter writer = options.getWriterToSave();
+        conn.play(streamId, options.getStreamName(), writer, options.getStart(), options.getLength(),
             new ResultHandler() {
                 public void handleResult(Object ignored) {
                     logger.info("play accepted successfully");
@@ -89,16 +84,7 @@ public class ConsumeLogic implements ClientLogic {
     }
 
     public void onMetaData(Connection conn, Metadata metadata) {
-        if(metadata.getName().equals("onMetaData")) {
-            logger.debug("writing 'onMetaData': {}", metadata);
-            writer.write(metadata);
-        } else {
-            logger.debug("ignoring metadata: {}", metadata);
-        }
-    }
-
-    public void onData(Connection conn, DataMessage message) {
-        writer.write(message);
+        
     }
 
 }

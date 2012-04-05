@@ -23,6 +23,7 @@ import java.util.Map;
 
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.rtmp.RtmpReader;
+import com.flazr.rtmp.RtmpWriter;
 
 import com.flazr.rtmp.PublishType;
 
@@ -32,9 +33,9 @@ public interface Connection {
 
     public void createStream(ResultHandler handler);
 
-    public void publish(int streamId, String streamName, PublishType publishType, int bufferSize, RtmpReader reader, ResultHandler handler);
+    public void publish(int streamId, String streamName, RtmpReader reader, PublishType publishType, int bufferSize, ResultHandler handler);
 
-    public void play(int streamId, String streamName, int start, int length, ResultHandler handler);
+    public void play(int streamId, String streamName, RtmpWriter writer, int start, int length, ResultHandler handler);
 
     public void message(RtmpMessage message);
 
