@@ -46,7 +46,7 @@ public class PublishLogic implements ClientLogic {
         conn.connectToScope(options.getAppName(), options.getTcUrl(), options.getParams(), options.getConnectArgs(),
             new ResultHandler() {
                 public void handleResult(Object ignored) {
-                    ClientUtils.beginPublish(conn, options.getReaderToPublish(), options.getStreamName(), options.getPublishType(), options.getBuffer());
+                    ClientUtils.beginPublish(conn, options.getStreamName(), options.getReaderToPublish(), options.getPublishType(), options.getBuffer());
                 }
             });
     }

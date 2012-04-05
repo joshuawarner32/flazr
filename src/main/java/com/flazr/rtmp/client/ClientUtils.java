@@ -27,7 +27,7 @@ import com.flazr.rtmp.RtmpPublisher;
 
 public class ClientUtils {
 
-    public static void beginPublish(final Connection conn, final RtmpReader reader, final String streamName, final PublishType publishType, final int bufferSize) {
+    public static void beginPublish(final Connection conn, final String streamName, final RtmpReader reader, final PublishType publishType, final int bufferSize) {
         conn.createStream(new ResultHandler() {
             public void handleResult(Object streamId) {
                 int id = ((Double) streamId).intValue();
