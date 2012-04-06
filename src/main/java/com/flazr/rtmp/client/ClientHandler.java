@@ -81,19 +81,19 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
 
     private Connection myConnection = new Connection() {
 
-        public void connectToScope(String scopeName, String tcUrl, Map<String, Object> params, Object[] args, ResultHandler handler) {
+        public void connect(String scopeName, String tcUrl, Map<String, Object> params, Object[] args, ResultHandler handler) {
             writeCommandExpectingResult(channel, 
                 Command.connect(scopeName, tcUrl, params, args),
                 handler);
         }
 
-        public void createStream(ResultHandler handler) {
+        private void createStream(ResultHandler handler) {
             writeCommandExpectingResult(channel,
                 Command.createStream(),
                 handler);
         }
 
-        public void publish(final int streamId, String streamName, RtmpReader reader, PublishType publishType, int bufferSize, ResultHandler handler) {
+        private void publish(final int streamId, String streamName, RtmpReader reader, PublishType publishType, int bufferSize, ResultHandler handler) {
             publisher = new RtmpPublisher(reader, streamId, bufferSize, false, false) {
                 @Override protected RtmpMessage[] getStopMessages(long timePosition) {
                     return new RtmpMessage[]{Command.unpublish(streamId)};
@@ -104,15 +104,41 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 handler);
         }
 
-        public void play(int streamId, String streamName, RtmpWriter writer, int start, int length, ResultHandler handler) {
+        private void play(int streamId, String streamName, RtmpWriter writer, long start, long length, ResultHandler handler) {
             writers.put(streamId, writer);
             writeCommandExpectingResult(channel,
                 Command.play(streamId, streamName, start, length),
                 handler);
         }
 
-        public void message(RtmpMessage message) {
-            channel.write(message);
+        public void publish(final String streamName, final RtmpReader reader, final PublishType publishType, final StreamHandler handler) {
+            createStream(new ResultHandler() {
+                public void handleResult(Object result) {
+                    int id = ((Double) result).intValue();
+                    publish(id, streamName, reader, publishType, bufferSize, new ResultHandler() {
+                        public void handleResult(Object ignored) {
+                            // TODO: inform handler
+                            logger.info("publish of '{}' accepted", streamName);
+                        }
+                    });
+                }
+            });
+        }
+
+        public void play(final String streamName, final RtmpWriter writer, final long start, final long length, final StreamHandler handler) {
+            createStream(new ResultHandler() {
+                public void handleResult(Object streamId) {
+                    int id = ((Double) streamId).intValue();
+                    play(id, streamName, writer, start, length,
+                        new ResultHandler() {
+                            public void handleResult(Object ignored) {
+                                // TODO: inform handler
+                                logger.info("play of '{}' accepted", streamName);
+                            }
+                        });
+                    channel.write(Control.setBuffer(id, 0));
+                }
+            });
         }
     };
 

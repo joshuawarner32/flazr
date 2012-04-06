@@ -46,35 +46,29 @@ public class ConsumeLogic implements ClientLogic {
     }
 
     public void connected(final Connection conn) {
-        conn.connectToScope(options.getAppName(), options.getTcUrl(), options.getParams(), options.getConnectArgs(),
+        conn.connect(options.getAppName(), options.getTcUrl(), options.getParams(), options.getConnectArgs(),
             new ResultHandler() {
                 public void handleResult(Object ignored) {
-                    connectedToScope(conn);
+                    conn.play(options.getStreamName(), options.getWriterToSave(), options.getStart(), options.getLength(), new StreamHandler() {
+
+                        public void connected() {
+                            logger.info("stream {} connected", options.getStreamName());
+                        }
+
+                        public void error() {
+                            logger.info("stream {} error", options.getStreamName());
+                        }
+
+                        public void closed() {
+                            logger.info("stream {} closed", options.getStreamName());
+                        }
+
+                    });
                 }
             });
     }
 
     public void closed(Connection conn) {
-    }
-
-    private void connectedToScope(final Connection conn) {
-        conn.createStream(new ResultHandler() {
-            public void handleResult(Object streamId) {
-                int id = ((Double) streamId).intValue();
-                readyToConsume(conn, id);
-            }
-        });
-    }
-
-    private void readyToConsume(final Connection conn, int streamId) {
-        RtmpWriter writer = options.getWriterToSave();
-        conn.play(streamId, options.getStreamName(), writer, options.getStart(), options.getLength(),
-            new ResultHandler() {
-                public void handleResult(Object ignored) {
-                    logger.info("play accepted successfully");
-                }
-            });
-        conn.message(Control.setBuffer(streamId, 0));
     }
 
 

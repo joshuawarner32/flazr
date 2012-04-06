@@ -145,7 +145,7 @@ public abstract class Command extends AbstractMessage {
         return new CommandAmf0(transactionId, "_result", null, streamId);
     }
 
-    public static Command play(int streamId, String streamName, int start, int length, Object... args) {
+    public static Command play(int streamId, String streamName, long start, long length, Object... args) {
         final List playArgs = new ArrayList();
         playArgs.add(streamName);
         if(start != -2 || args.length > 0) {

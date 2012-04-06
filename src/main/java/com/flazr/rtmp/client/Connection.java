@@ -29,14 +29,15 @@ import com.flazr.rtmp.PublishType;
 
 public interface Connection {
 
-    public void connectToScope(String scopeName, String tcUrl, Map<String, Object> params, Object[] args, ResultHandler handler);
+    // TODO: either / or:
+    // * break this method out into a higher-level class, so we guarantee that it's called exactly once per connection.
+    // * make sure connecting twice has sensical, defined semantics.
+    public void connect(String scopeName, String tcUrl, Map<String, Object> params, Object[] args, ResultHandler handler);
 
-    public void createStream(ResultHandler handler);
+    // TODO: return an object that can be used to manipulate the publish stream
+    public void publish(String streamName, RtmpReader reader, PublishType publishType, StreamHandler handler);
 
-    public void publish(int streamId, String streamName, RtmpReader reader, PublishType publishType, int bufferSize, ResultHandler handler);
-
-    public void play(int streamId, String streamName, RtmpWriter writer, int start, int length, ResultHandler handler);
-
-    public void message(RtmpMessage message);
+    // TODO: return an object that can be used to manipulate the play stream
+    public void play(String streamName, RtmpWriter writer, long start, long length, StreamHandler handler);
 
 }
