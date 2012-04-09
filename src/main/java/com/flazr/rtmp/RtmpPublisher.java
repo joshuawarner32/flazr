@@ -151,6 +151,17 @@ public abstract class RtmpPublisher {
             return;
         }
         final long writeTime = System.currentTimeMillis();
+        final long elapsedTime = System.currentTimeMillis() - startTime;
+        final long clientBuffer = timePosition - elapsedTime;
+
+        // TODO: justify / change '10' constant...
+        if(clientBuffer > 10 * bufferDuration) {
+            // Make sure we don't schedule sending tasks indefinitely into the future
+            // This seems to exhaust resources somewhere along the
+            // flazr_client->red5_server->flash_client chain, and stall playback.
+            return;
+        }
+
         final RtmpMessage message;
         synchronized(reader) { //=============== SYNCHRONIZE ! =================
             if(reader.hasNext()) {
@@ -163,8 +174,6 @@ public abstract class RtmpPublisher {
             stop(channel);
             return;
         }
-        final long elapsedTime = System.currentTimeMillis() - startTime;
-        final double clientBuffer = timePosition - elapsedTime;
         if(aggregateModeEnabled && clientBuffer > timerTickSize) { // TODO cleanup
             reader.setAggregateDuration((int) clientBuffer);
         } else {
