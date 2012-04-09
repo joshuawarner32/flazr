@@ -49,7 +49,7 @@ public class RtmpEncoder extends SimpleChannelDownstreamHandler {
         Channels.write(ctx, e.getFuture(), encode((RtmpMessage) e.getMessage()));
     }
 
-    public ChannelBuffer encode(final RtmpMessage message) {
+    public synchronized ChannelBuffer encode(final RtmpMessage message) {
         final ChannelBuffer in = message.encode();
         final RtmpHeader header = message.getHeader();
         if(header.isChunkSize()) {
