@@ -274,7 +274,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                             || code.equals("NetStream.Play.Stop")
                             || code.equals("NetStream.Play.StreamNotFound"))
                     {
-                        logger.info("disconnecting, code: {}, bytes read: {}", code, bytesRead);
+                        logger.info("disconnecting, info: [{}], bytes read: {}", temp, bytesRead);
                         channel.close();
                         return;
                     }
