@@ -21,11 +21,11 @@ package com.flazr.rtmp;
 
 public enum RtmpProtocol {
 
-    RTMP,
-    RTMPE,
-    RTMPT,
-    RTMPS_NATIVE,
-    RTMPS_OVER_HTTPS;
+    RTMP("rtmp"),
+    RTMPE("rtmpe"),
+    RTMPT("rtmpt"),
+    RTMPS_NATIVE("rtmps"),
+    RTMPS_OVER_HTTPS("rtmps");
 
     private static final int FLAG_RTMP = 0;
     private static final int FLAG_RTMPE = 1;
@@ -40,7 +40,13 @@ public enum RtmpProtocol {
         RTMPS_OVER_HTTPS.flags = FLAG_HTTP | FLAG_SSL;
     }
 
+    private RtmpProtocol(String name) {
+        this.name = name;
+    }
+
     private int flags;
+
+    private String name;
 
     public boolean useHttp() {
         return (flags & FLAG_HTTP) != 0;
@@ -52,6 +58,10 @@ public enum RtmpProtocol {
 
     public boolean useRtmpe() {
         return (flags & FLAG_RTMPE) != 0;
+    }
+
+    public String asString() {
+        return name;
     }
 
 }

@@ -24,6 +24,7 @@ import com.flazr.rtmp.RtmpPublisher;
 import com.flazr.rtmp.SwfData;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelDownstreamHandler;
 import org.jboss.netty.channel.ChannelEvent;
@@ -49,9 +50,9 @@ public class ClientHandshakeHandler extends FrameDecoder implements ChannelDowns
 
     @Override
     public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) {        
-        logger.info("connected, starting handshake");                
-        Channels.write(ctx, e.getFuture(), handshake.encodeClient0());
-        Channels.write(ctx, e.getFuture(), handshake.encodeClient1());
+        logger.info("rtmp channel connected, starting handshake");    
+        ChannelBuffer out = ChannelBuffers.wrappedBuffer(handshake.encodeClient0(), handshake.encodeClient1());
+        Channels.write(ctx, e.getFuture(), out);        
     }
 
     @Override

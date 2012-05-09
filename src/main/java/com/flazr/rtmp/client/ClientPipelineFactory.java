@@ -23,19 +23,25 @@ import com.flazr.rtmp.*;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.handler.execution.ExecutionHandler;
-import org.jboss.netty.handler.execution.OrderedMemoryAwareThreadPoolExecutor;
+import org.jboss.netty.handler.codec.http.HttpChunkAggregator;
+import org.jboss.netty.handler.codec.http.HttpClientCodec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ClientPipelineFactory implements ChannelPipelineFactory {
 
+    private static final Logger logger = LoggerFactory.getLogger(ClientPipelineFactory.class);
+
     private final ClientLogic logic;
+    private final String host;
     private final int bufferSize;
     private RtmpProtocol protocol;
     private SwfData swfData;
     private byte[] clientVersionToUse;
 
-    public ClientPipelineFactory(ClientLogic logic, int bufferSize, RtmpProtocol protocol, SwfData swfData, byte[] clientVersionToUse) {
+    public ClientPipelineFactory(ClientLogic logic,String host, int bufferSize, RtmpProtocol protocol, SwfData swfData, byte[] clientVersionToUse) {
         this.logic = logic;
+        this.host = host;
         this.bufferSize = bufferSize;
         this.protocol = protocol;
         this.swfData = swfData;
@@ -45,13 +51,19 @@ public class ClientPipelineFactory implements ChannelPipelineFactory {
     @Override
     public ChannelPipeline getPipeline() {
         final ChannelPipeline pipeline = Channels.pipeline();
+
         if(protocol.useSsl()) {
             // TODO: add SSL encoder / decoder, to support RTMPS (in it's two forms: http proxied and native)
             throw new UnsupportedOperationException("SSL is not currently supported");
+//        SSLEngine engine = DummySslContextFactory.getClientContext().createSSLEngine();
+//        engine.setUseClientMode(true);
+//        pipeline.addLast("ssl", new SslHandler(engine));
         }
         if(protocol.useHttp()) {
-            // TODO: add Http encoder / decoder, to support RTMPT
-            throw new UnsupportedOperationException("proxying RTMP over HTTP is not currently supported");
+            logger.info("{} requested, initializing http tunnel", protocol);
+            pipeline.addLast("httpcodec", new HttpClientCodec());
+            pipeline.addLast("httpchunk", new HttpChunkAggregator(1048576));
+            pipeline.addLast("httptunnel", new ClientHttpTunnelHandler(host));
         }
         pipeline.addLast("handshaker", new ClientHandshakeHandler(protocol.useRtmpe(), swfData, clientVersionToUse));
         pipeline.addLast("decoder", new RtmpDecoder());

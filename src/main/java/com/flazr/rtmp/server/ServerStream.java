@@ -18,6 +18,7 @@
  */
 package com.flazr.rtmp.server;
 
+import com.flazr.rtmp.PublishType;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.util.Utils;
 import com.flazr.rtmp.PublishType;
@@ -32,9 +33,8 @@ import org.jboss.netty.channel.group.DefaultChannelGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class ServerStream {
-    
+
     private final String name;
     private final PublishType publishType;
     private final ChannelGroup subscribers;
@@ -43,7 +43,7 @@ public class ServerStream {
 
     private static final Logger logger = LoggerFactory.getLogger(ServerStream.class);
 
-    public ServerStream(final String rawName, final String typeString) {        
+    public ServerStream(final String rawName, final String typeString) {
         this.name = Utils.trimSlashes(rawName).toLowerCase();
         if(typeString != null) {
             this.publishType = PublishType.parse(typeString); // TODO record, append
@@ -73,7 +73,6 @@ public class ServerStream {
         return name;
     }
 
-
     public List<RtmpMessage> getConfigMessages() {
         return configMessages;
     }
@@ -93,7 +92,7 @@ public class ServerStream {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder();        
+        final StringBuilder sb = new StringBuilder();
         sb.append("[name: '").append(name);
         sb.append("' type: ").append(publishType);
         sb.append(" publisher: ").append(publisher);

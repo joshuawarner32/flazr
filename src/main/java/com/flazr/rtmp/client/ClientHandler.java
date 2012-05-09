@@ -26,6 +26,7 @@ import com.flazr.rtmp.message.Control;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.RtmpPublisher;
+import com.flazr.rtmp.RtmpPusher;
 import com.flazr.rtmp.RtmpWriter;
 import com.flazr.rtmp.message.BytesRead;
 import com.flazr.rtmp.message.ChunkSize;
@@ -47,6 +48,7 @@ import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipelineCoverage;
 import org.jboss.netty.channel.ChannelStateEvent;
+import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
@@ -66,10 +68,10 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
 
     private int bytesReadWindow = 2500000;
     private long bytesRead;
-    private long bytesReadLastSent;    
+    private long bytesReadLastSent;
     private int bytesWrittenWindow = 2500000;
-    
-    private RtmpPublisher publisher;
+
+    private RtmpPusher pusher;
 
     private Map<Integer, RtmpWriter> writers = new HashMap<Integer, RtmpWriter>();
 
@@ -82,7 +84,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     private Connection myConnection = new Connection() {
 
         public void connect(String scopeName, String tcUrl, Map<String, Object> params, Object[] args, ResultHandler handler) {
-            writeCommandExpectingResult(channel, 
+            writeCommandExpectingResult(channel,
                 Command.connect(scopeName, tcUrl, params, args),
                 handler);
         }
@@ -94,9 +96,15 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
         }
 
         private void publish(final int streamId, String streamName, RtmpReader reader, PublishType publishType, int bufferSize, ResultHandler handler) {
-            publisher = new RtmpPublisher(reader, streamId, bufferSize, false, false) {
-                @Override protected RtmpMessage[] getStopMessages(long timePosition) {
-                    return new RtmpMessage[]{Command.unpublish(streamId)};
+            pusher = new RtmpPusher(reader) {
+                @Override
+                public void onMessage(RtmpMessage message) {
+                    logger.debug("writing: {}", message);
+                    Channels.write(channel, message);
+                }
+                @Override
+                public void onStop(long time) {
+                    Channels.write(channel, Command.unpublish(streamId));
                 }
             };
             writeCommandExpectingResult(channel,
@@ -143,8 +151,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     };
 
     public void setSwfvBytes(byte[] swfvBytes) {
-        this.swfvBytes = swfvBytes;        
-        logger.info("set swf verification bytes: {}", Utils.toHex(swfvBytes));        
+        this.swfvBytes = swfvBytes;
+        logger.info("set swf verification bytes: {}", Utils.toHex(swfvBytes));
     }
 
     public ClientHandler(ClientLogic logic, int bufferSize) {
@@ -178,19 +186,16 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
         logger.info("channel closed: {}", e);
         logic.closed(myConnection);
         super.channelClosed(ctx, e);
-        if(publisher != null) {
-            publisher.close();
+        if (pusher != null) {
+            pusher.close();
         }
         for(RtmpWriter writer : writers.values()) {
             writer.close();
         }
     }
-    
+
     @Override
     public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent me) {
-        if(publisher != null && publisher.handle(me)) {
-            return;
-        }
         final Channel channel = me.getChannel();
         final RtmpMessage message = (RtmpMessage) me.getMessage();
         switch(message.getHeader().getMessageType()) {
@@ -209,7 +214,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         break;
                     case SWFV_REQUEST:
                         if(swfvBytes == null) {
-                            logger.warn("swf verification not initialized!" 
+                            logger.warn("swf verification not initialized!"
                                 + " not sending response, server likely to stop responding / disconnect");
                         } else {
                             Control swfv = Control.swfvResponse(swfvBytes);
@@ -218,8 +223,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         }
                         break;
                     case STREAM_BEGIN:
-                        if(publisher != null && !publisher.isStarted()) {
-                            publisher.start(channel, new ChunkSize(4096));
+                        if(pusher != null && !pusher.isStarted()) {
+                            pusher.start(streamId, new ChunkSize(4096));
                             return;
                         }
                         if(streamId !=0) {
@@ -265,7 +270,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                     } else {
                         logger.warn("un-handled server result for: {}", command.getArg(0));
                     }
-                } else if(name.equals("onStatus")) {
+                } else if (name.equals("onStatus")) {
                     final Map<String, Object> temp = (Map) command.getArg(0);
                     final String code = (String) temp.get("code");
                     logger.info("onStatus code: {}", code);
@@ -278,25 +283,24 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         channel.close();
                         return;
                     }
-                    if(code.equals("NetStream.Publish.Start")
-                            && publisher != null && !publisher.isStarted())
+                    if(code.equals("NetStream.Publish.Start") && pusher != null && !pusher.isStarted())
                     {
-                        publisher.start(channel, new ChunkSize(4096));
+                        pusher.start(streamId, new ChunkSize(4096));
                         return;
                     }
-                    if (publisher != null && code.equals("NetStream.Unpublish.Success")) {
+                    if (pusher != null && code.equals("NetStream.Unpublish.Success")) {
                         logger.info("unpublish success, closing channel");
-                        ChannelFuture future = channel.write(Command.closeStream(streamId));
+                        ChannelFuture future = Channels.write(channel, Command.closeStream(streamId));
                         future.addListener(ChannelFutureListener.CLOSE);
                         return;
                     }
                 } else if(name.equals("close")) {
                     logger.info("server called close, closing channel");
-                    channel.close();
+                    Channels.close(channel);
                     return;
                 } else if(name.equals("_error")) {
                     logger.error("closing channel, server resonded with error: {}", command);
-                    channel.close();
+                    Channels.close(channel);
                     return;
                 } else {
                     Object result = logic.onCommand(myConnection, command);
@@ -307,28 +311,25 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 logger.info("ack from server: {}", message);
                 break;
             case WINDOW_ACK_SIZE:
-                WindowAckSize was = (WindowAckSize) message;                
+                WindowAckSize was = (WindowAckSize) message;
                 if(was.getValue() != bytesReadWindow) {
-                    channel.write(SetPeerBw.dynamic(bytesReadWindow));
-                }                
+                    Channels.write(channel, SetPeerBw.dynamic(bytesReadWindow));
+                }
                 break;
             case SET_PEER_BW:
-                SetPeerBw spb = (SetPeerBw) message;                
+                SetPeerBw spb = (SetPeerBw) message;
                 if(spb.getValue() != bytesWrittenWindow) {
-                    channel.write(new WindowAckSize(bytesWrittenWindow));
+                    Channels.write(channel, new WindowAckSize(bytesWrittenWindow));
                 }
                 break;
             default:
             logger.info("ignoring rtmp message: {}", message);
-        }
-        if(publisher != null && publisher.isStarted()) { // TODO better state machine
-            publisher.fireNext(channel, 0);
         }
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
         ChannelUtils.exceptionCaught(e);
-    }    
+    }
 
 }

@@ -4,6 +4,7 @@ import org.junit.Test;
 
 public class ServerApplicationTest {
 
-  @Test public void testNothing() {}
+  @Test
+  public void testNothing() {}
 
 }
