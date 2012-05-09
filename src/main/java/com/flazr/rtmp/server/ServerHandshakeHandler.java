@@ -24,6 +24,7 @@ import com.flazr.rtmp.RtmpPublisher;
 import com.flazr.util.Utils;
 import java.util.Arrays;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelDownstreamHandler;
 import org.jboss.netty.channel.ChannelEvent;
@@ -55,11 +56,9 @@ public class ServerHandshakeHandler extends FrameDecoder implements ChannelDowns
                 return null;
             }
             handshake.decodeClient0And1(in);
-            rtmpe = handshake.isRtmpe();
-            ChannelFuture future = Channels.succeededFuture(channel);
-            Channels.write(ctx, future, handshake.encodeServer0());
-            Channels.write(ctx, future, handshake.encodeServer1());
-            Channels.write(ctx, future, handshake.encodeServer2());
+            rtmpe = handshake.isRtmpe();            
+            ChannelBuffer out = ChannelBuffers.wrappedBuffer(handshake.encodeServer0(), handshake.encodeServer1(), handshake.encodeServer2());
+            Channels.write(ctx, Channels.future(ctx.getChannel()), out);
             partOneDone = true;
         }
         if(!handshakeDone) {

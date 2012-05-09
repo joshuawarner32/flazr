@@ -26,6 +26,7 @@ import com.flazr.rtmp.message.Control;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.RtmpPublisher;
+import com.flazr.rtmp.RtmpPusher;
 import com.flazr.rtmp.RtmpWriter;
 import com.flazr.rtmp.message.BytesRead;
 import com.flazr.rtmp.message.ChunkSize;
@@ -43,6 +44,7 @@ import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipelineCoverage;
 import org.jboss.netty.channel.ChannelStateEvent;
+import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
@@ -66,7 +68,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     private long bytesReadLastSent;    
     private int bytesWrittenWindow = 2500000;
     
-    private RtmpPublisher publisher;
+    private RtmpPusher pusher;
     private int streamId;    
 
     public void setSwfvBytes(byte[] swfvBytes) {
@@ -102,20 +104,17 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     @Override
     public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
         logger.info("channel closed: {}", e);
-        if(writer != null) {
+        if (writer != null) {
             writer.close();
         }
-        if(publisher != null) {
-            publisher.close();
+        if (pusher != null) {
+            pusher.close();
         }
         super.channelClosed(ctx, e);
     }
     
     @Override
     public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent me) {
-        if(publisher != null && publisher.handle(me)) {
-            return;
-        }
         final Channel channel = me.getChannel();
         final RtmpMessage message = (RtmpMessage) me.getMessage();
         switch(message.getHeader().getMessageType()) {
@@ -143,9 +142,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         }
                         break;
                     case STREAM_BEGIN:
-                        if(publisher != null && !publisher.isStarted()) {
-                            publisher.start(channel, options.getStart(),
-                                    options.getLength(), new ChunkSize(4096));
+                        if(pusher != null && !pusher.isStarted()) {
+                            pusher.start(streamId, options.getStart(), options.getLength(), new ChunkSize(4096));
                             return;
                         }
                         if(streamId !=0) {
@@ -182,43 +180,48 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 Command command = (Command) message;                
                 String name = command.getName();
                 logger.debug("server command: {}", name);
-                if(name.equals("_result")) {
+                if (name.equals("_result")) {
                     String resultFor = transactionToCommandMap.get(command.getTransactionId());
                     logger.info("result for method call: {}", resultFor);
                     if(resultFor.equals("connect")) {
                         writeCommandExpectingResult(channel, Command.createStream());
-                    } else if(resultFor.equals("createStream")) {
+                    } else if (resultFor.equals("createStream")) {
                         streamId = ((Double) command.getArg(0)).intValue();
                         logger.debug("streamId to use: {}", streamId);
-                        if(options.getPublishType() != null) { // TODO append, record                            
+                        if (options.getPublishType() != null) { // TODO append, record                            
                             RtmpReader reader;
-                            if(options.getFileToPublish() != null) {
+                            if (options.getFileToPublish() != null) {
                                 reader = RtmpPublisher.getReader(options.getFileToPublish());
                             } else {
                                 reader = options.getReaderToPublish();
                             }
-                            if(options.getLoop() > 1) {
+                            if (options.getLoop() > 1) {
                                 reader = new LoopedReader(reader, options.getLoop());
                             }
-                            publisher = new RtmpPublisher(reader, streamId, options.getBuffer(), false, false) {
-                                @Override protected RtmpMessage[] getStopMessages(long timePosition) {
-                                    return new RtmpMessage[]{Command.unpublish(streamId)};
+                            pusher = new RtmpPusher(reader) {
+                                @Override
+                                public void onMessage(RtmpMessage message) {
+                                    Channels.write(channel, message);
+                                }
+                                @Override
+                                public void onStop(long time) {
+                                    Channels.write(channel, Command.unpublish(streamId));
                                 }
                             };                            
-                            channel.write(Command.publish(streamId, options));
+                            Channels.write(channel, Command.publish(streamId, options));
                             return;
                         } else {
                             writer = options.getWriterToSave();
                             if(writer == null) {
                                 writer = new FlvWriter(options.getStart(), options.getSaveAs());
                             }
-                            channel.write(Command.play(streamId, options));
-                            channel.write(Control.setBuffer(streamId, 0));
+                            Channels.write(channel, Command.play(streamId, options));
+                            Channels.write(channel, Control.setBuffer(streamId, 0));
                         }
                     } else {
                         logger.warn("un-handled server result for: {}", resultFor);
                     }
-                } else if(name.equals("onStatus")) {
+                } else if (name.equals("onStatus")) {
                     final Map<String, Object> temp = (Map) command.getArg(0);
                     final String code = (String) temp.get("code");
                     logger.info("onStatus code: {}", code);
@@ -230,25 +233,23 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         channel.close();
                         return;
                     }
-                    if(code.equals("NetStream.Publish.Start")
-                            && publisher != null && !publisher.isStarted()) {
-                            publisher.start(channel, options.getStart(),
-                                    options.getLength(), new ChunkSize(4096));
+                    if (code.equals("NetStream.Publish.Start") && pusher != null && !pusher.isStarted()) {
+                        pusher.start(streamId, options.getStart(), options.getLength(), new ChunkSize(4096));
                         return;
                     }
-                    if (publisher != null && code.equals("NetStream.Unpublish.Success")) {
+                    if (pusher != null && code.equals("NetStream.Unpublish.Success")) {
                         logger.info("unpublish success, closing channel");
-                        ChannelFuture future = channel.write(Command.closeStream(streamId));
+                        ChannelFuture future = Channels.write(channel, Command.closeStream(streamId));
                         future.addListener(ChannelFutureListener.CLOSE);
                         return;
                     }
                 } else if(name.equals("close")) {
                     logger.info("server called close, closing channel");
-                    channel.close();
+                    Channels.close(channel);
                     return;
                 } else if(name.equals("_error")) {
                     logger.error("closing channel, server resonded with error: {}", command);
-                    channel.close();
+                    Channels.close(channel);
                     return;
                 } else {
                     logger.warn("ignoring server command: {}", command);
@@ -260,20 +261,17 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
             case WINDOW_ACK_SIZE:
                 WindowAckSize was = (WindowAckSize) message;                
                 if(was.getValue() != bytesReadWindow) {
-                    channel.write(SetPeerBw.dynamic(bytesReadWindow));
+                    Channels.write(channel, SetPeerBw.dynamic(bytesReadWindow));
                 }                
                 break;
             case SET_PEER_BW:
                 SetPeerBw spb = (SetPeerBw) message;                
                 if(spb.getValue() != bytesWrittenWindow) {
-                    channel.write(new WindowAckSize(bytesWrittenWindow));
+                    Channels.write(channel, new WindowAckSize(bytesWrittenWindow));
                 }
                 break;
             default:
             logger.info("ignoring rtmp message: {}", message);
-        }
-        if(publisher != null && publisher.isStarted()) { // TODO better state machine
-            publisher.fireNext(channel, 0);
         }
     }
 

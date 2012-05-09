@@ -19,11 +19,11 @@
 
 package com.flazr.rtmp.client;
 
+import com.flazr.rtmp.ProtocolType;
+import com.flazr.rtmp.PublishType;
 import com.flazr.rtmp.RtmpHandshake;
 import com.flazr.rtmp.RtmpReader;
 import com.flazr.rtmp.RtmpWriter;
-import com.flazr.rtmp.server.ServerStream;
-import com.flazr.rtmp.server.ServerStream.PublishType;
 import com.flazr.util.Utils;
 import java.io.BufferedReader;
 import java.io.File;
@@ -49,9 +49,9 @@ import org.slf4j.LoggerFactory;
 
 public class ClientOptions {
 
-    private static final Logger logger = LoggerFactory.getLogger(ClientOptions.class);
+    private static final Logger logger = LoggerFactory.getLogger(ClientOptions.class);        
 
-    private ServerStream.PublishType publishType;
+    private PublishType publishType;
     private String host = "localhost";
     private int port = 1935;
     private String appName = "vod";
@@ -59,8 +59,8 @@ public class ClientOptions {
     private String fileToPublish;
     private RtmpReader readerToPublish;
     private RtmpWriter writerToSave;
-    private String saveAs;    
-    private boolean rtmpe;
+    private String saveAs; 
+    private ProtocolType protocol = ProtocolType.RTMP;
     private Map<String, Object> params;
     private Object[] args;
     private byte[] clientVersionToUse;
@@ -74,31 +74,20 @@ public class ClientOptions {
     private int threads = 10;
     private List<ClientOptions> clientOptionsList;
 
-    public static void main(String[] args) {
-        ClientOptions co = new ClientOptions();
-        co.parseCli(new String[]{
-            "-version", "00000000", "-live", "-app", "oflaDemo", "-buffer", "0",
-            "stream1259414892312", "home/apps/vod/IronMan.flv"
-        });
-        RtmpClient.connect(co);
-    }
-
     public ClientOptions() {}
 
     public ClientOptions(String host, String appName, String streamName, String saveAs) {
-        this(host, 1935, appName, streamName, saveAs, false, null);
-    }
+        this(host, 1935, appName, streamName, saveAs, null);
+    }    
 
-    public ClientOptions(String host, int port, String appName, String streamName, String saveAs,
-            boolean rtmpe, String swfFile) {
+    public ClientOptions(String host, int port, String appName, String streamName, String saveAs, ProtocolType protocol) {
         this.host = host;
         this.port = port;
         this.appName = appName;
         this.streamName = streamName;
         this.saveAs = saveAs;
-        this.rtmpe = rtmpe;        
-        if(swfFile != null) {
-            initSwfVerification(swfFile);
+        if (protocol != null) {
+            this.protocol = protocol;  
         }
     }
 
@@ -120,7 +109,8 @@ public class ClientOptions {
             throw new RuntimeException("invalid url: " + url);
         }
         logger.debug("parsing url: {}", url);
-        String protocol = matcher.group(1);
+        String protocolString = matcher.group(1);        
+        protocol = ProtocolType.parse(protocolString);
         logger.debug("protocol = '{}'",  protocol);
         host = matcher.group(2);
         logger.debug("host = '{}'", host);
@@ -135,24 +125,8 @@ public class ClientOptions {
         appName = matcher.group(4);
         logger.debug("app = '{}'",  appName);
         streamName = matcher.group(5);
-        logger.debug("playName = '{}'", streamName);
-        rtmpe = protocol.equalsIgnoreCase("rtmpe");
-        if(rtmpe) {
-            logger.debug("rtmpe requested, will use encryption");
-        }        
-    }
-    
-    public void publishLive() {
-        publishType = ServerStream.PublishType.LIVE;        
-    }
-    
-    public void publishRecord() {
-        publishType = ServerStream.PublishType.RECORD;        
-    }
-    
-    public void publishAppend() {
-        publishType = ServerStream.PublishType.APPEND;        
-    }
+        logger.debug("playName = '{}'", streamName);       
+    }    
 
     //==========================================================================
     
@@ -172,10 +146,10 @@ public class ClientOptions {
                 .withDescription("length (milliseconds)").create("length"));
         options.addOption(OptionBuilder.withArgName("buffer").hasArg()
                 .withDescription("buffer duration (milliseconds)").create("buffer"));
-        options.addOption(new Option("rtmpe", "use RTMPE (encryption)"));
-        options.addOption(new Option("live", "publish local file to server in 'live' mode"));
-        options.addOption(new Option("record", "publish local file to server in 'record' mode"));
-        options.addOption(new Option("append", "publish local file to server in 'append' mode"));
+        options.addOption(OptionBuilder.withArgName("protocol").hasArg()
+                .withDescription("'rtmp', 'rtmpe', 'rtmpt' or 'rtmps'").create("protocol"));        
+        options.addOption(OptionBuilder.withArgName("publish").hasArg()
+                .withDescription("publish mode: 'live', 'record' or 'append'").create("publish"));
         options.addOption(OptionBuilder.withArgName("property=value").hasArgs(2)
                 .withValueSeparator().withDescription("add / override connection param").create("D"));
         options.addOption(OptionBuilder.withArgName("swf").hasArg()
@@ -204,35 +178,29 @@ public class ClientOptions {
                         + "\n(name can be stream name, URL or load testing script file)", options);
                 return false;
             }
-            if(line.hasOption("host")) {
+            if (line.hasOption("host")) {
                 host = line.getOptionValue("host");
             }
-            if(line.hasOption("port")) {
+            if (line.hasOption("port")) {
                 port = Integer.valueOf(line.getOptionValue("port"));
             }  
-            if(line.hasOption("app")) {
+            if (line.hasOption("app")) {
                 appName = line.getOptionValue("app");
             }
-            if(line.hasOption("start")) {
+            if (line.hasOption("start")) {
                 start = Integer.valueOf(line.getOptionValue("start"));
             }
-            if(line.hasOption("length")) {
+            if (line.hasOption("length")) {
                 length = Integer.valueOf(line.getOptionValue("length"));
             }
-            if(line.hasOption("buffer")) {
+            if (line.hasOption("buffer")) {
                 buffer = Integer.valueOf(line.getOptionValue("buffer"));
             }
-            if(line.hasOption("rtmpe")) {
-                rtmpe = true;
-            }
-            if(line.hasOption("live")) {
-                publishLive();
-            }
-            if(line.hasOption("record")) {
-                publishRecord();
-            }
-            if(line.hasOption("append")) {
-                publishAppend();
+            if (line.hasOption("protocol")) {
+                protocol = ProtocolType.parse(line.getOptionValue("protocol"));
+            }            
+            if (line.hasOption("publish")) {                
+                publishType = PublishType.parse(line.getOptionValue("publish"));
             }
             if(line.hasOption("version")) {
                 clientVersionToUse = Utils.fromHex(line.getOptionValue("version"));
@@ -355,7 +323,7 @@ public class ClientOptions {
     }
 
     public String getTcUrl() {
-        return (rtmpe ? "rtmpe://" : "rtmp://") + host + ":" + port + "/" + appName;
+        return protocol.asString() + "://" + host + ":" + port + "/" + appName;
     }
 
     public void setArgs(Object ... args) {
@@ -466,9 +434,13 @@ public class ClientOptions {
         this.saveAs = saveAs;
     }
 
-    public boolean isRtmpe() {
-        return rtmpe;
+    public ProtocolType getProtocol() {
+        return protocol;
     }
+
+    public void setProtocol(ProtocolType protocol) {
+        this.protocol = protocol;
+    }        
 
     public byte[] getSwfHash() {
         return swfHash;
@@ -509,13 +481,13 @@ public class ClientOptions {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("[host: '").append(host);
+        sb.append("[protocol: ").append(protocol);
+        sb.append(" host: '").append(host);
         sb.append("' port: ").append(port);
         sb.append(" appName: '").append(appName);
         sb.append("' streamName: '").append(streamName);
-        sb.append("' saveAs: '").append(saveAs);
-        sb.append("' rtmpe: ").append(rtmpe);
-        sb.append(" publish: ").append(publishType);
+        sb.append("' saveAs: '").append(saveAs);        
+        sb.append("' publish: ").append(publishType);
         if(clientVersionToUse != null) {
             sb.append(" clientVersionToUse: '").append(Utils.toHex(clientVersionToUse)).append('\'');
         }

@@ -18,6 +18,7 @@
  */
 package com.flazr.rtmp.server;
 
+import com.flazr.rtmp.PublishType;
 import com.flazr.rtmp.RtmpMessage;
 import com.flazr.util.Utils;
 import java.util.ArrayList;
@@ -29,22 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ServerStream {
-
-    public static enum PublishType {
-
-        LIVE,
-        APPEND,
-        RECORD;
-
-        public String asString() {
-            return this.name().toLowerCase();
-        }
-
-        public static PublishType parse(final String raw) {
-            return PublishType.valueOf(raw.toUpperCase());
-        }
-
-    }
     
     private final String name;
     private final PublishType publishType;
@@ -83,7 +68,6 @@ public class ServerStream {
     public String getName() {
         return name;
     }
-
 
     public List<RtmpMessage> getConfigMessages() {
         return configMessages;
