@@ -18,19 +18,22 @@ public abstract class RtmpPusher implements Runnable {
     private long playDuration = -1;
     private int bufferDuration;
     private long currentPosition;
-    private int streamId;
+    private final int streamId;
 
-    public RtmpPusher(RtmpReader reader) {
+    public RtmpPusher(RtmpReader reader, int streamId) {
+        this.streamId = streamId;
         this.reader = reader;
         executor = Executors.newSingleThreadExecutor();
+        if(streamId == 0) {
+            throw new IllegalArgumentException("streamId is 0");
+        }
     }
 
     public void setBufferDuration(int bufferDuration) {
         this.bufferDuration = bufferDuration;
     }
 
-    public void start(int streamId, RtmpMessage ... messages) {
-        this.streamId = streamId;
+    public void start(RtmpMessage ... messages) {
         startTime = -1;
         for (RtmpMessage message : messages) {
             onMessageInternal(message);

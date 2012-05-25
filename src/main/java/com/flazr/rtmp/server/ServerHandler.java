@@ -306,7 +306,7 @@ public class ServerHandler extends SimpleChannelHandler {
                 channel.write(Command.playFailed(playName, clientId));
                 return;
             }
-            pusher = new RtmpPusher(reader) {
+            pusher = new RtmpPusher(reader, streamId) {
                 @Override
                 public void onMessage(RtmpMessage message) {
                     logger.debug("writing: {}", message);
@@ -320,7 +320,7 @@ public class ServerHandler extends SimpleChannelHandler {
                 }
             };
         }
-        pusher.start(streamId, getStartMessages(playResetCommand));
+        pusher.start(getStartMessages(playResetCommand));
     }
 
     private void pauseResponse(final Channel channel, final Command command) {
@@ -335,7 +335,7 @@ public class ServerHandler extends SimpleChannelHandler {
             logger.debug("doing unpause, seeking and playing");
             final Command unpause = Command.unpauseNotify(playName, clientId);
             pusher.seek(clientTimePosition);
-            pusher.start(streamId, getStartMessages(unpause));
+            pusher.start(getStartMessages(unpause));
         } else {
             pusher.pause();
         }
@@ -350,7 +350,7 @@ public class ServerHandler extends SimpleChannelHandler {
         if (!pusher.isPaused()) {
             final Command seekNotify = Command.seekNotify(streamId, clientTimePosition, playName, clientId);
             pusher.seek(clientTimePosition);
-            pusher.start(streamId, getStartMessages(seekNotify));
+            pusher.start(getStartMessages(seekNotify));
         } else {
             logger.debug("ignoring seek when paused, client time position: {}", clientTimePosition);
         }

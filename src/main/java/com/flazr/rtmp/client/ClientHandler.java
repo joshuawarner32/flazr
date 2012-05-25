@@ -71,15 +71,32 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
     private long bytesReadLastSent;
     private int bytesWrittenWindow = 2500000;
 
-    private RtmpPusher pusher;
+    private int bufferSize;
 
     private Map<Integer, RtmpWriter> writers = new HashMap<Integer, RtmpWriter>();
 
-    private int streamId;
-
-    private int bufferSize;
-
     private Channel channel;
+
+    private static class MyPublisher {
+        public Channel channel;
+        public int streamId;
+        public int bufferSize;
+        public RtmpPusher pusher;
+
+        public MyPublisher(Channel channel, int streamId, int bufferSize, RtmpPusher pusher) {
+            this.channel = channel;
+            this.streamId = streamId;
+            this.bufferSize = bufferSize;
+            this.pusher = pusher;
+        }
+
+        public void start(RtmpMessage... startMessages) {
+            Channels.write(channel, Control.setBuffer(streamId, bufferSize));
+            pusher.start(startMessages);
+        }
+    }
+
+    private MyPublisher publisher;
 
     private Connection myConnection = new Connection() {
 
@@ -96,7 +113,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
         }
 
         private void publish(final int streamId, String streamName, RtmpReader reader, PublishType publishType, int bufferSize, ResultHandler handler) {
-            pusher = new RtmpPusher(reader) {
+            publisher = new MyPublisher(channel, streamId, bufferSize, new RtmpPusher(reader, streamId) {
                 @Override
                 public void onMessage(RtmpMessage message) {
                     logger.debug("writing: {}", message);
@@ -106,7 +123,7 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                 public void onStop(long time) {
                     Channels.write(channel, Command.unpublish(streamId));
                 }
-            };
+            });
             writeCommandExpectingResult(channel,
                 Command.publish(streamId, streamName, publishType),
                 handler);
@@ -186,8 +203,8 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
         logger.info("channel closed: {}", e);
         logic.closed(myConnection);
         super.channelClosed(ctx, e);
-        if (pusher != null) {
-            pusher.close();
+        if (publisher != null) {
+            publisher.pusher.close();
         }
         for(RtmpWriter writer : writers.values()) {
             writer.close();
@@ -223,12 +240,9 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         }
                         break;
                     case STREAM_BEGIN:
-                        if(pusher != null && !pusher.isStarted()) {
-                            pusher.start(streamId, new ChunkSize(4096));
+                        if(publisher != null && !publisher.pusher.isStarted()) {
+                            publisher.start(new ChunkSize(4096));
                             return;
-                        }
-                        if(streamId !=0) {
-                            channel.write(Control.setBuffer(streamId, bufferSize));
                         }
                         break;
                     default:
@@ -283,14 +297,14 @@ public class ClientHandler extends SimpleChannelUpstreamHandler {
                         channel.close();
                         return;
                     }
-                    if(code.equals("NetStream.Publish.Start") && pusher != null && !pusher.isStarted())
+                    if(code.equals("NetStream.Publish.Start") && publisher.pusher != null && !publisher.pusher.isStarted())
                     {
-                        pusher.start(streamId, new ChunkSize(4096));
+                        publisher.start(new ChunkSize(4096));
                         return;
                     }
-                    if (pusher != null && code.equals("NetStream.Unpublish.Success")) {
+                    if (publisher != null && code.equals("NetStream.Unpublish.Success")) {
                         logger.info("unpublish success, closing channel");
-                        ChannelFuture future = Channels.write(channel, Command.closeStream(streamId));
+                        ChannelFuture future = Channels.write(channel, Command.closeStream(publisher.streamId));
                         future.addListener(ChannelFutureListener.CLOSE);
                         return;
                     }
