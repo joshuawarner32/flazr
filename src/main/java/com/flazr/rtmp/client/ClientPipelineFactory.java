@@ -39,7 +39,7 @@ public class ClientPipelineFactory implements ChannelPipelineFactory {
     private SwfData swfData;
     private byte[] clientVersionToUse;
 
-    public ClientPipelineFactory(ClientLogic logic,String host, int bufferSize, RtmpProtocol protocol, SwfData swfData, byte[] clientVersionToUse) {
+    public ClientPipelineFactory(ClientLogic logic, String host, int bufferSize, RtmpProtocol protocol, SwfData swfData, byte[] clientVersionToUse) {
         this.logic = logic;
         this.host = host;
         this.bufferSize = bufferSize;
